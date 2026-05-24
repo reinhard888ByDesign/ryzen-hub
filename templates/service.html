@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}{{ svc.name }} — Ryzen Hub{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Service header ─────────────────────────────────────── */
+  .service-header {
+    padding: 24px 32px 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .service-header-icon {
+    font-size: 32px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .service-header-info { flex: 1; min-width: 0; }
+  .service-header-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: var(--text-1);
+    line-height: 1.2;
+  }
+  .service-header-desc {
+    font-size: 13px;
+    color: var(--text-2);
+    margin-top: 2px;
+  }
+  .service-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Detail status badge */
+  .detail-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .badge-up      { background: var(--green-soft);  color: #1a6b35; }
+  .badge-degraded { background: var(--amber-soft); color: #7c4f00; }
+  .badge-down    { background: var(--red-soft);    color: #8b1a14; }
+  .badge-unknown { background: rgba(142,142,147,0.12); color: var(--gray); }
+
+  /* Open in new tab button */
+  .btn-external {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    text-decoration: none;
+    box-shadow: var(--shadow-xs);
+    transition: background 0.12s, box-shadow 0.12s;
+    white-space: nowrap;
+  }
+  .btn-external:hover {
+    background: var(--accent-soft);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ── Meta strip ─────────────────────────────────────────── */
+  .service-meta {
+    padding: 10px 32px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .meta-label { color: var(--text-3); }
+  .meta-value { font-weight: 500; color: var(--text-1); }
+
+  /* ── iframe container ───────────────────────────────────── */
+  .iframe-wrap {
+    flex: 1;
+    padding: 16px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .iframe-inner {
+    flex: 1;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    position: relative;
+    min-height: calc(100vh - 200px);
+  }
+  .iframe-inner iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    position: absolute;
+    inset: 0;
+  }
+
+  /* ── Down state ─────────────────────────────────────────── */
+  .down-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    height: 100%;
+    min-height: calc(100vh - 200px);
+    color: var(--text-2);
+    text-align: center;
+    padding: 40px;
+  }
+  .down-state-icon { font-size: 48px; opacity: 0.4; }
+  .down-state-title { font-size: 18px; font-weight: 600; color: var(--text-1); }
+  .down-state-msg { font-size: 13px; max-width: 360px; line-height: 1.6; }
+  .down-state-error {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 12px;
+    padding: 8px 14px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 6px;
+    color: var(--red);
+    max-width: 400px;
+    word-break: break-all;
+  }
+  .btn-retry {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 4px;
+    transition: opacity 0.12s;
+  }
+  .btn-retry:hover { opacity: 0.85; }
+
+  /* Make main flex column for full-height iframe */
+  .main { height: 100vh; overflow: hidden; }
+  .service-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+</style>
+
+<div class="service-page">
+  <!-- Header -->
+  <div class="service-header">
+    <div class="service-header-icon">{{ svc.icon }}</div>
+    <div class="service-header-info">
+      <div class="service-header-name">{{ svc.name }}</div>
+      <div class="service-header-desc">{{ svc.description }}</div>
+    </div>
+    <div class="service-header-actions">
+      <div class="detail-status-badge badge-{{ svc.status }}"
+           data-detail-badge="{{ svc.id }}">
+        <span class="status-dot dot-{{ svc.status }}"></span>
+        {{ {'up':'Online','degraded':'Beeinträchtigt','down':'Offline','unknown':'Prüfe…'}[svc.status] or '–' }}
+      </div>
+      <a href="{{ iframe_url }}" target="_blank" class="btn-external">
+        ↗ In neuem Tab
+      </a>
+    </div>
+  </div>
+
+  <!-- Meta strip -->
+  <div class="service-meta">
+    <div class="meta-item">
+      <span class="meta-label">URL</span>
+      <span class="meta-value">{{ svc.url }}</span>
+    </div>
+    {% if svc.response_ms %}
+    <div class="meta-item">
+      <span class="meta-label">Antwortzeit</span>
+      <span class="meta-value" data-ms="{{ svc.id }}">{{ svc.response_ms }} ms</span>
+    </div>
+    {% endif %}
+    {% if svc.stat_value %}
+    <div class="meta-item">
+      <span class="meta-label">{{ svc.db_label or 'Einträge' }}</span>
+      <span class="meta-value" data-stat="{{ svc.id }}">{{ svc.stat_value }}</span>
+    </div>
+    {% endif %}
+    {% if svc.last_check %}
+    <div class="meta-item" style="margin-left:auto;">
+      <span class="meta-label">Zuletzt geprüft</span>
+      <span class="meta-value">{{ svc.last_check.strftime('%H:%M:%S') }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Content: iframe or down state -->
+  <div class="iframe-wrap">
+    <div class="iframe-inner">
+      {% if svc.status == 'down' %}
+      <div class="down-state">
+        <div class="down-state-icon">⚡</div>
+        <div class="down-state-title">{{ svc.name }} ist nicht erreichbar</div>
+        <div class="down-state-msg">
+          Der Service antwortet momentan nicht. Prüfe ob der Prozess oder Container läuft.
+        </div>
+        {% if svc.last_error %}
+        <div class="down-state-error">{{ svc.last_error }}</div>
+        {% endif %}
+        <a href="/service/{{ svc.id }}" class="btn-retry">↺ Erneut versuchen</a>
+      </div>
+      {% else %}
+      <iframe src="{{ iframe_url }}"
+              title="{{ svc.name }}"
+              loading="lazy"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-popups-to-escape-sandbox">
+      </iframe>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

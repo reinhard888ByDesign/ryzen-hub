@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Übersicht — Ryzen Hub{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Health Summary Bar ─────────────────────────────────── */
+  .health-bar {
+    display: flex;
+    gap: 10px;
+    padding: 28px 32px 0;
+    flex-wrap: wrap;
+  }
+  .health-chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-1);
+    box-shadow: var(--shadow-xs);
+  }
+  .health-chip-count {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .chip-green  { color: #1a6b35; }
+  .chip-red    { color: #8b1a14; }
+  .chip-gray   { color: var(--text-2); }
+
+  /* ── Status strip ───────────────────────────────────────── */
+  .status-strip {
+    margin: 14px 32px 0;
+    height: 3px;
+    background: var(--border-light);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .status-strip-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--green) 0%, #30d158 100%);
+    transition: width 0.4s var(--ease);
+  }
+
+  /* ── Down alert ─────────────────────────────────────────── */
+  .down-banner {
+    margin: 12px 32px 0;
+    background: var(--red-soft);
+    border: 1px solid rgba(255,59,48,0.18);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+  }
+  .down-banner-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #8b1a14;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .down-banner-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .down-tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    background: rgba(255,59,48,0.1);
+    border-radius: 12px;
+    font-size: 12px;
+    color: #8b1a14;
+    font-weight: 500;
+  }
+
+  /* ── Cards section ──────────────────────────────────────── */
+  .card-no-stat .card-divider,
+  .card-no-stat .card-footer { display: none; }
+</style>
+
+<!-- Health summary -->
+<div class="health-bar" id="health-bar">
+  {% set up = namespace(n=0) %}
+  {% set down = namespace(n=0) %}
+  {% for svc in registry %}
+    {% if svc.status == 'up' %}{% set up.n = up.n + 1 %}{% endif %}
+    {% if svc.status == 'down' %}{% set down.n = down.n + 1 %}{% endif %}
+  {% endfor %}
+  <div class="health-chip">
+    <span class="status-dot dot-up"></span>
+    <span class="health-chip-count chip-green" id="up-count">{{ up.n }}</span>
+    <span class="chip-gray">von {{ registry|length }} Online</span>
+  </div>
+  {% if down.n > 0 %}
+  <div class="health-chip">
+    <span class="status-dot dot-down"></span>
+    <span class="health-chip-count chip-red">{{ down.n }}</span>
+    <span class="chip-gray">Offline</span>
+  </div>
+  {% endif %}
+  <div class="health-chip" style="margin-left: auto;">
+    <span style="color:var(--text-3); font-size:12px;">Aktualisiert alle 30 s</span>
+  </div>
+</div>
+
+<!-- Progress strip -->
+{% set pct = (up.n / registry|length * 100)|int %}
+<div class="status-strip">
+  <div class="status-strip-fill" style="width: {{ pct }}%"></div>
+</div>
+
+<!-- Down banner -->
+{% if down_services %}
+<div class="down-banner">
+  <div class="down-banner-title">⚠️ Nicht erreichbar</div>
+  <div class="down-banner-items">
+    {% for svc in down_services %}
+    <a href="/service/{{ svc.id }}" class="down-tag" style="text-decoration:none;">
+      {{ svc.icon }} {{ svc.name }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Service cards by category -->
+<div class="content">
+  {% for category, services in groups.items() %}
+  <div class="section-header">{{ category }}</div>
+  <div class="cards">
+    {% for svc in services %}
+    <a href="/service/{{ svc.id }}" class="card {% if not svc.stat_value %}card-no-stat{% endif %}">
+      <div class="card-top">
+        <div class="card-icon">{{ svc.icon }}</div>
+        <div class="card-status-badge {{ 'badge-' + svc.status }}" data-badge="{{ svc.id }}">
+          <span class="status-dot dot-{{ svc.status }}"></span>
+          {{ {'up':'Online','degraded':'Beeinträchtigt','down':'Offline','unknown':'Prüfe…'}[svc.status] or '–' }}
+        </div>
+      </div>
+      <div class="card-name">{{ svc.name }}</div>
+      <div class="card-desc">{{ svc.description }}</div>
+      {% if svc.stat_value %}
+      <div class="card-divider"></div>
+      <div class="card-footer">
+        <div>
+          <div class="card-stat-num" data-stat="{{ svc.id }}">{{ svc.stat_value }}</div>
+          <div class="card-stat-label">{{ svc.db_label or '' }}</div>
+        </div>
+        <div>
+          {% if svc.response_ms %}
+          <div class="card-ms" data-ms="{{ svc.id }}">{{ svc.response_ms }} ms</div>
+          {% endif %}
+          <div class="card-arrow">›</div>
+        </div>
+      </div>
+      {% else %}
+      <div style="margin-top: auto; padding-top: 12px; display:flex; justify-content:flex-end; align-items:center; gap:8px;">
+        {% if svc.response_ms %}
+        <span class="card-ms" data-ms="{{ svc.id }}">{{ svc.response_ms }} ms</span>
+        {% endif %}
+        <span class="card-arrow">›</span>
+      </div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  // Update health summary bar counts dynamically
+  async function updateSummary() {
+    try {
+      const data = await fetch('/api/status').then(r => r.json());
+      const vals = Object.values(data);
+      const upN = vals.filter(v => v.status === 'up').length;
+      document.getElementById('up-count').textContent = upN;
+      const pct = Math.round(upN / vals.length * 100);
+      document.querySelector('.status-strip-fill').style.width = pct + '%';
+    } catch(e) {}
+  }
+  setInterval(updateSummary, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+[Unit]
+Description=Ryzen Hub — Lokales Dashboard-Portal
+After=network.target
+
+[Service]
+Type=simple
+User=reinhard
+WorkingDirectory=/home/reinhard/ryzen-hub
+ExecStart=/home/reinhard/.local/bin/uvicorn app:app --host 0.0.0.0 --port 9000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
