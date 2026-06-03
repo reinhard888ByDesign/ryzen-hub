@@ -8,8 +8,9 @@ from typing import Optional
 
 import httpx
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from urllib.parse import urljoin
 
 SKILLS = Path("/home/reinhard/.claude/skills")
 
@@ -74,6 +75,15 @@ REGISTRY: list[Service] = [
         db_path=str(SKILLS / "sachversicherungen/sachversicherungen.db"),
         db_query="SELECT COUNT(*) FROM vertraege WHERE aktiv=1",
         db_label="Aktive Verträge",
+    ),
+    Service(
+        id="finanzanalyse", name="Finanzanalyse", url="http://localhost:8097",
+        category="Dokumente & Abfragen", icon="💰",
+        description="Finanzguru-Export: 11.115 Transaktionen 2021–2025",
+        health_path="/api/summary.json",
+        db_path="/home/reinhard/finanzen/finanzen.db",
+        db_query="SELECT CAST(ROUND(SUM(CASE WHEN betrag_eur>0 THEN betrag_eur ELSE 0 END) - SUM(CASE WHEN betrag_eur<0 THEN ABS(betrag_eur) ELSE 0 END)) AS INTEGER) || ' €' FROM transaktionen WHERE umbuchung=0",
+        db_label="Netto-Saldo",
     ),
     Service(
         id="aufgaben", name="Aufgaben", url="http://localhost:8096",
@@ -202,6 +212,81 @@ async def health_loop():
             await asyncio.sleep(30)
 
 
+@app.api_route("/p/{service_id}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_to_service(request: Request, service_id: str, path: str):
+    """Reverse-proxy zu einem Sub-Dashboard.
+    Leitet /p/<service_id>/... an localhost:<port>/... weiter.
+    """
+    svc = by_id(service_id)
+    if not svc:
+        return JSONResponse({"error": f"Unknown service: {service_id}"}, status_code=404)
+
+    target_base = svc.url.rstrip("/")
+    target_url = f"{target_base}/{path}"
+    if request.url.query:
+        target_url += f"?{request.url.query}"
+
+    # Request body (for POST/PUT/PATCH)
+    body = await request.body() if request.method in ("POST", "PUT", "PATCH") else None
+
+    # Headers to forward (strip host, origin)
+    headers = {k: v for k, v in request.headers.items()
+               if k.lower() not in ("host", "transfer-encoding", "content-length")}
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+        try:
+            r = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body,
+            )
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Proxy error: {e}"}, status_code=502)
+
+    # Response headers to forward (strip hop-by-hop)
+    resp_headers = {k: v for k, v in r.headers.items()
+                    if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+
+    return StreamingResponse(
+        r.aiter_bytes(),
+        status_code=r.status_code,
+        headers=resp_headers,
+        media_type=r.headers.get("content-type", "text/html"),
+    )
+
+
+@app.get("/p/{service_id}")
+async def proxy_root(request: Request, service_id: str):
+    """Proxy root path /p/<service_id>/ → localhost:<port>/"""
+    svc = by_id(service_id)
+    if not svc:
+        return JSONResponse({"error": f"Unknown service: {service_id}"}, status_code=404)
+
+    target_url = svc.url.rstrip("/") + "/"
+    if request.url.query:
+        target_url += f"?{request.url.query}"
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+        try:
+            r = await client.get(target_url, headers={
+                k: v for k, v in request.headers.items()
+                if k.lower() not in ("host", "transfer-encoding")
+            })
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Proxy error: {e}"}, status_code=502)
+
+    resp_headers = {k: v for k, v in r.headers.items()
+                    if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+
+    return StreamingResponse(
+        r.aiter_bytes(),
+        status_code=r.status_code,
+        headers=resp_headers,
+        media_type=r.headers.get("content-type", "text/html"),
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     down = [s for s in REGISTRY if s.status == "down"]
@@ -220,8 +305,7 @@ async def service_detail(request: Request, service_id: str):
     svc = by_id(service_id)
     if not svc:
         return HTMLResponse("Service not found", status_code=404)
-    host = request.headers.get("host", "localhost").split(":")[0]
-    iframe_url = svc.url.replace("localhost", host).replace("127.0.0.1", host)
+    iframe_url = f"/p/{service_id}/"
     return templates.TemplateResponse(request, "service.html", {
         "svc": svc,
         "groups": grouped(),
