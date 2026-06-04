@@ -27,6 +27,7 @@ class Service:
     db_query: Optional[str] = None
     db_label: Optional[str] = None
     health_path: str = "/"
+    iframe_path: str = "/"
     # runtime state
     status: str = "unknown"
     response_ms: Optional[int] = None
@@ -112,6 +113,7 @@ REGISTRY: list[Service] = [
         id="cache-reader", name="Cache Reader", url="http://localhost:8501",
         category="Infrastruktur", icon="🗄️",
         description="Docling Workflow Cache-Viewer",
+        health_path="/health",
     ),
     Service(
         id="syncthing", name="Syncthing", url="http://localhost:8384",
@@ -124,6 +126,7 @@ REGISTRY: list[Service] = [
         category="Infrastruktur", icon="📄",
         description="PDF-Konvertierungs-API",
         health_path="/health",
+        iframe_path="/docs",
     ),
     Service(
         id="open-webui", name="Open WebUI", url="http://localhost:3000",
@@ -287,6 +290,52 @@ async def proxy_root(request: Request, service_id: str):
     )
 
 
+@app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_dispatcher_api(request: Request, path: str):
+    """Fängt /api/... Links aus dem Dispatcher-iframe ab und leitet sie
+    an den Dispatcher-Backend weiter. Hub-eigene /api/status wird NICHT
+    proxied.
+    """
+    # Hub-eigene Endpunkte nicht proxieren
+    if path == "status":
+        return await api_status()
+
+    dispatcher = by_id("dispatcher")
+    if not dispatcher:
+        return JSONResponse({"error": "Dispatcher not configured"}, status_code=502)
+
+    target_base = dispatcher.url.rstrip("/")
+    target_url = f"{target_base}/api/{path}"
+    if request.url.query:
+        target_url += f"?{request.url.query}"
+
+    body = await request.body() if request.method in ("POST", "PUT", "PATCH") else None
+
+    headers = {k: v for k, v in request.headers.items()
+               if k.lower() not in ("host", "transfer-encoding", "content-length")}
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+        try:
+            r = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body,
+            )
+        except httpx.RequestError as e:
+            return JSONResponse({"error": f"Proxy error: {e}"}, status_code=502)
+
+    resp_headers = {k: v for k, v in r.headers.items()
+                    if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+
+    return StreamingResponse(
+        r.aiter_bytes(),
+        status_code=r.status_code,
+        headers=resp_headers,
+        media_type=r.headers.get("content-type", "text/html"),
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     down = [s for s in REGISTRY if s.status == "down"]
@@ -305,7 +354,7 @@ async def service_detail(request: Request, service_id: str):
     svc = by_id(service_id)
     if not svc:
         return HTMLResponse("Service not found", status_code=404)
-    iframe_url = f"/p/{service_id}/"
+    iframe_url = f"/p/{service_id}/{svc.iframe_path.lstrip('/')}"
     return templates.TemplateResponse(request, "service.html", {
         "svc": svc,
         "groups": grouped(),
@@ -326,3 +375,36 @@ async def api_status():
         }
         for svc in REGISTRY
     }
+
+
+# ── Vault-Dateizugriff ─────────────────────────────────────────────────────────
+
+VAULT_ROOT = Path("/home/reinhard/docker/RYZEN - docling-workflow/syncthing/data/reinhards-vault")
+
+
+@app.get("/vault-file")
+async def serve_vault_file(path: str = ""):
+    """Liefert eine Datei aus dem Vault (PDF, MD, etc.) — fuer alle Dashboards."""
+    from fastapi.responses import FileResponse
+    if not path or ".." in path:
+        return JSONResponse({"error": "Ungültiger Pfad"}, status_code=400)
+    full = VAULT_ROOT / path
+    if not full.exists() or not full.is_file():
+        return JSONResponse({"error": f"Datei nicht gefunden: {path}"}, status_code=404)
+    try:
+        full.resolve().relative_to(VAULT_ROOT.resolve())
+    except ValueError:
+        return JSONResponse({"error": "Path traversal blockiert"}, status_code=400)
+    media = "application/pdf" if full.suffix.lower() == ".pdf" else "text/markdown"
+    return FileResponse(str(full), media_type=media, content_disposition_type="inline")
+
+
+@app.get("/pdf/{filename:path}")
+async def serve_pdf_from_anlagen(filename: str):
+    """Liefert ein PDF aus dem Anlagen/ Ordner des Vaults."""
+    from fastapi.responses import FileResponse
+    basename = Path(filename).name
+    full = VAULT_ROOT / "Anlagen" / basename
+    if not full.exists() or not full.is_file():
+        return JSONResponse({"error": f"PDF nicht gefunden: {basename}"}, status_code=404)
+    return FileResponse(str(full), media_type="application/pdf", content_disposition_type="inline")
