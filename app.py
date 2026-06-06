@@ -8,11 +8,19 @@ from typing import Optional
 
 import httpx
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from urllib.parse import urljoin
+import re
 
 SKILLS = Path("/home/reinhard/.claude/skills")
+
+
+def is_mobile_device(user_agent: str) -> bool:
+    """Erkennt mobile Geräte (iPhone, Android Phones) am User-Agent."""
+    if not user_agent:
+        return False
+    return bool(re.search(r'iphone|android.*mobile|ipod', user_agent.lower()))
 
 
 @dataclass
@@ -339,6 +347,7 @@ async def proxy_dispatcher_api(request: Request, path: str):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     down = [s for s in REGISTRY if s.status == "down"]
+    mobile = is_mobile_device(request.headers.get("user-agent", ""))
     return templates.TemplateResponse(request, "index.html", {
         "registry": REGISTRY,
         "groups": grouped(),
@@ -346,6 +355,7 @@ async def index(request: Request):
         "down_services": down,
         "total": len(REGISTRY),
         "up_count": sum(1 for s in REGISTRY if s.status == "up"),
+        "is_mobile": mobile,
     })
 
 
@@ -354,12 +364,14 @@ async def service_detail(request: Request, service_id: str):
     svc = by_id(service_id)
     if not svc:
         return HTMLResponse("Service not found", status_code=404)
+    mobile = is_mobile_device(request.headers.get("user-agent", ""))
     iframe_url = f"/p/{service_id}/{svc.iframe_path.lstrip('/')}"
     return templates.TemplateResponse(request, "service.html", {
         "svc": svc,
         "groups": grouped(),
         "active": service_id,
         "iframe_url": iframe_url,
+        "is_mobile": mobile,
     })
 
 

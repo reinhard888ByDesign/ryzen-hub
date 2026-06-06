@@ -170,6 +170,41 @@
     height: 100vh;
     overflow: hidden;
   }
+
+  /* ── Mobile: Direktlink statt iframe ────────────────────── */
+  .mobile-direct-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 28px 20px;
+    gap: 16px;
+    height: 100%;
+  }
+  .mobile-direct-icon { font-size: 56px; opacity: 0.85; }
+  .mobile-direct-info {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+    max-width: 280px;
+  }
+  .mobile-direct-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0,113,227,0.35);
+    transition: transform 0.15s;
+    margin-top: 8px;
+  }
+  .mobile-direct-btn:active { transform: scale(0.96); }
 </style>
 
 <div class="service-page">
@@ -232,6 +267,17 @@
         <div class="down-state-error">{{ svc.last_error }}</div>
         {% endif %}
         <a href="/service/{{ svc.id }}" class="btn-retry">↺ Erneut versuchen</a>
+      </div>
+      {% elif is_mobile %}
+      <div class="mobile-direct-link">
+        <div class="mobile-direct-icon">{{ svc.icon }}</div>
+        <div class="mobile-direct-info">
+          {{ svc.name }} wird auf dem iPhone in einem eigenen Tab geöffnet —
+          die eingebettete Darstellung ist auf iOS eingeschränkt.
+        </div>
+        <a href="{{ svc.url }}" target="_blank" class="mobile-direct-btn">
+          🚀 {{ svc.name }} öffnen ↗
+        </a>
       </div>
       {% else %}
       <iframe src="{{ iframe_url }}"
