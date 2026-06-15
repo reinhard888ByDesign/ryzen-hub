@@ -116,6 +116,7 @@ REGISTRY: list[Service] = [
         id="dispatcher", name="Dispatcher", url="http://localhost:8765",
         category="Infrastruktur", icon="📨",
         description="Dokument-Dispatcher & Klassifikations-Pipeline",
+        health_path="/api/health",
     ),
     Service(
         id="cache-reader", name="Cache Reader", url="http://localhost:8501",
@@ -195,6 +196,30 @@ async def on_startup():
     asyncio.create_task(health_loop())
 
 
+def _parse_health_json(response) -> str:
+    """Parse a health-check JSON body and return 'ok', 'degraded', or 'down'.
+    Returns 'ok' for non-JSON or unrecognised bodies (fall back to HTTP status)."""
+    try:
+        body = response.json()
+    except (ValueError, AttributeError):
+        return "ok"  # Not JSON — trust HTTP status
+
+    # Wilson-style: {"status": "degraded", "services_up": 0, "services_total": 6, ...}
+    status = body.get("status", "")
+    if status in ("degraded", "down", "error"):
+        return status
+
+    # services_up / services_total check (Wilson health endpoint)
+    # Prüfe "down" zuerst (0 services), dann "degraded" (teilweise)
+    if "services_up" in body and "services_total" in body:
+        if body["services_up"] == 0 and body["services_total"] > 0:
+            return "down"
+        if body["services_up"] < body["services_total"]:
+            return "degraded"
+
+    return "ok"
+
+
 async def health_loop():
     async with httpx.AsyncClient(timeout=httpx.Timeout(3.0)) as client:
         while True:
@@ -207,8 +232,18 @@ async def health_loop():
                     svc.response_ms = ms
                     svc.last_check = datetime.now()
                     if r.status_code < 500:
-                        svc.status = "up"
-                        svc.last_error = None
+                        # Parse JSON body for health status where available
+                        # (e.g., Wilson health endpoint returns {"status":"degraded",...})
+                        body_status = _parse_health_json(r)
+                        if body_status in ("degraded", "error"):
+                            svc.status = "degraded"
+                            svc.last_error = f"Service reports {body_status}"
+                        elif body_status == "down":
+                            svc.status = "down"
+                            svc.last_error = "Service reports down"
+                        else:
+                            svc.status = "up"
+                            svc.last_error = None
                     else:
                         svc.status = "degraded"
                         svc.last_error = f"HTTP {r.status_code}"
