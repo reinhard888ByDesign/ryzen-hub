@@ -258,6 +258,19 @@ async def health_loop():
             await asyncio.sleep(30)
 
 
+def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
+    """Injiziert <base href='/p/{service_id}/'> in HTML-Antworten,
+    damit relative Links im iframe korrekt aufgeloest werden."""
+    try:
+        html = html_bytes.decode('utf-8', errors='replace')
+        if '<base ' not in html[:2000]:
+            base_tag = f'<base href="/p/{service_id}/">'
+            html = html.replace('<head>', f'<head>{base_tag}', 1)
+        return html.encode('utf-8')
+    except Exception:
+        return html_bytes
+
+
 @app.api_route("/p/{service_id}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_to_service(request: Request, service_id: str, path: str):
     """Reverse-proxy zu einem Sub-Dashboard.
@@ -294,11 +307,18 @@ async def proxy_to_service(request: Request, service_id: str, path: str):
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
 
+    content_type = r.headers.get("content-type", "")
+    if "text/html" in content_type:
+        # HTML-Antwort: base-Tag injizieren für korrekte relative Links im iframe
+        body = await r.aread()
+        body = _inject_base_tag(body, service_id)
+        return HTMLResponse(content=body.decode('utf-8', errors='replace'),
+                           status_code=r.status_code, headers=resp_headers)
     return StreamingResponse(
         r.aiter_bytes(),
         status_code=r.status_code,
         headers=resp_headers,
-        media_type=r.headers.get("content-type", "text/html"),
+        media_type=content_type,
     )
 
 
@@ -325,11 +345,17 @@ async def proxy_root(request: Request, service_id: str):
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
 
+    content_type = r.headers.get("content-type", "")
+    if "text/html" in content_type:
+        body = await r.aread()
+        body = _inject_base_tag(body, service_id)
+        return HTMLResponse(content=body.decode('utf-8', errors='replace'),
+                           status_code=r.status_code, headers=resp_headers)
     return StreamingResponse(
         r.aiter_bytes(),
         status_code=r.status_code,
         headers=resp_headers,
-        media_type=r.headers.get("content-type", "text/html"),
+        media_type=content_type,
     )
 
 
