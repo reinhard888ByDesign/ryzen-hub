@@ -154,6 +154,13 @@ REGISTRY: list[Service] = [
         description="KI-Agent auf Wilson Pi 5 — Services, Memory, Heartbeat",
         health_path="/health",
     ),
+    Service(
+        id="vault-integrity", name="Vault Integrity", url="http://localhost:8099",
+        category="Infrastruktur", icon="🔍",
+        description="Vault-Integritäts-Check — 6 Phasen: Duplikate, Links, Frontmatter, Kategorien, App-Routing, Inbox",
+        health_path="/api/status",
+        iframe_path="/vault",
+    ),
 ]
 
 CATEGORY_ORDER = ["Dokumente & Abfragen", "Haushalt", "Infrastruktur", "KI"]
