@@ -266,13 +266,57 @@ async def health_loop():
 
 
 def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
-    """Injiziert <base href='/p/{service_id}/'> in HTML-Antworten,
-    damit relative Links im iframe korrekt aufgeloest werden."""
+    """Injiziert <base> und fetch/XHR-Patcher in HTML-Antworten,
+    damit absolute Pfade im iframe korrekt aufgeloest werden."""
     try:
         html = html_bytes.decode('utf-8', errors='replace')
         if '<base ' not in html[:2000]:
             base_tag = f'<base href="/p/{service_id}/">'
             html = html.replace('<head>', f'<head>{base_tag}', 1)
+
+        # Inject fetch/XHR interceptor (nur einmal pro Seite, vor existierenden scripts)
+        interceptor = f"""<script>
+(function(){{
+  if (window.__hubPatched) return;
+  window.__hubPatched = true;
+  var prefix = '/p/{service_id}';
+  function rewrite(u) {{
+    if (typeof u === 'string' && u.startsWith('/') && !u.startsWith('/p/') && !u.startsWith('/service/') && u !== '/api/status') {{
+      return prefix + u;
+    }}
+    return u;
+  }}
+  // fetch & XHR
+  var _fetch = window.fetch;
+  window.fetch = function(url, opts) {{
+    if (typeof url === 'string') url = rewrite(url);
+    else if (url instanceof Request) {{
+      var rw = rewrite(url.url);
+      if (rw !== url.url) url = new Request(rw, url);
+    }}
+    return _fetch.call(this, url, opts);
+  }};
+  var _open = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {{
+    arguments[1] = rewrite(url) || url;
+    return _open.apply(this, arguments);
+  }};
+  // <a href> clicks: prevent default, navigate via proxy
+  document.addEventListener('click', function(e) {{
+    var a = e.target.closest('a');
+    if (!a) return;
+    var h = a.getAttribute('href');
+    if (!h || h.startsWith('http') || h.startsWith('#')) return;
+    var rw = rewrite(h);
+    if (rw !== h) {{
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.href = rw;
+    }}
+  }}, true);
+}})();
+</script>"""
+        html = html.replace('<head>', f'<head>{interceptor}', 1)
         return html.encode('utf-8')
     except Exception:
         return html_bytes
