@@ -88,7 +88,7 @@ REGISTRY: list[Service] = [
     Service(
         id="finanzanalyse", name="Finanzanalyse", url="http://localhost:8097",
         category="Dokumente & Abfragen", icon="💰",
-        description="Finanzguru-Export: 11.115 Transaktionen 2021–2025",
+        description="Finanzanalyse — Transaktionen aus CSV-Import",
         health_path="/api/summary.json",
         db_path="/home/reinhard/finanzen/finanzen.db",
         db_query="SELECT CAST(ROUND(SUM(CASE WHEN betrag_eur>0 THEN betrag_eur ELSE 0 END) - SUM(CASE WHEN betrag_eur<0 THEN ABS(betrag_eur) ELSE 0 END)) AS INTEGER) || ' €' FROM transaktionen WHERE umbuchung=0",
