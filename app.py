@@ -367,21 +367,27 @@ async def proxy_root(request: Request, service_id: str):
 
 
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
-async def proxy_dispatcher_api(request: Request, path: str):
-    """Fängt /api/... Links aus dem Dispatcher-iframe ab und leitet sie
-    an den Dispatcher-Backend weiter. Hub-eigene /api/status wird NICHT
-    proxied.
+async def proxy_api(request: Request, path: str):
+    """Fängt /api/... Aufrufe aus iframes ab und leitet sie an den
+    richtigen Backend-Service weiter. Ermittelt den Ziel-Service aus
+    dem Referer-Header. Fallback: Dispatcher (für dessen eigenes iframe).
     """
     # Hub-eigene Endpunkte nicht proxieren
     if path == "status":
         return await api_status()
 
-    dispatcher = by_id("dispatcher")
-    if not dispatcher:
-        return JSONResponse({"error": "Dispatcher not configured"}, status_code=502)
+    # Prüfe Referer: Aus welchem Service-iframe kommt der Request?
+    referer = request.headers.get("referer", "")
+    m = re.search(r'/p/([a-z0-9_-]+)/', referer)
+    svc = by_id(m.group(1)) if m else None
 
-    target_base = dispatcher.url.rstrip("/")
-    target_url = f"{target_base}/api/{path}"
+    # Fallback: Dispatcher (für dessen /api/logs, /api/documents etc.)
+    if not svc:
+        svc = by_id("dispatcher")
+    if not svc:
+        return JSONResponse({"error": "No service configured"}, status_code=502)
+
+    target_url = f"{svc.url.rstrip('/')}/api/{path}"
     if request.url.query:
         target_url += f"?{request.url.query}"
 
@@ -488,3 +494,60 @@ async def serve_pdf_from_anlagen(filename: str):
     if not full.exists() or not full.is_file():
         return JSONResponse({"error": f"PDF nicht gefunden: {basename}"}, status_code=404)
     return FileResponse(str(full), media_type="application/pdf", content_disposition_type="inline")
+
+
+# ── Middleware: Requests aus iframes an den richtigen Service weiterleiten ─────
+# Dashboards im iframe machen fetch('/api/...') und <a href="/..."> mit
+# absolutem Pfad. Der <base> Tag greift nur bei relativen URLs. Diese Middleware
+# fängt alle Requests ab, deren Referer auf /p/<service_id>/ zeigt, und proxyed
+# sie an den korrekten Backend-Service.
+# Ausnahme: /p/*, /service/*, /api/status (Hub-eigene Routes).
+
+@app.middleware("http")
+async def iframe_proxy_middleware(request: Request, call_next):
+    """Proxy für iframe-Requests: Referer→Service-Mapping."""
+    path = request.url.path
+
+    # Hub-eigene Pfade nicht proxieren
+    if path.startswith("/p/") or path.startswith("/service/") or path == "/api/status":
+        return await call_next(request)
+
+    referer = request.headers.get("referer", "")
+    m = re.search(r'/p/([a-z0-9_-]+)/', referer)
+    if not m:
+        return await call_next(request)
+
+    svc = by_id(m.group(1))
+    if not svc:
+        return await call_next(request)
+
+    # /api/* wird bereits von proxy_api() behandelt — doppeltes Proxying vermeiden
+    if path.startswith("/api/"):
+        return await call_next(request)
+
+    target_url = f"{svc.url.rstrip('/')}{path}"
+    if request.url.query:
+        target_url += f"?{request.url.query}"
+
+    body = await request.body() if request.method in ("POST", "PUT", "PATCH") else None
+    headers = {k: v for k, v in request.headers.items()
+               if k.lower() not in ("host", "transfer-encoding", "content-length", "referer")}
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+        try:
+            r = await client.request(
+                method=request.method, url=target_url, headers=headers, content=body)
+        except httpx.RequestError as e:
+            return JSONResponse(status_code=502, content={"error": f"Proxy error: {e}"})
+
+    resp_headers = {k: v for k, v in r.headers.items()
+                    if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+    content_type = r.headers.get("content-type", "")
+
+    if "text/html" in content_type:
+        body_bytes = await r.aread()
+        body_bytes = _inject_base_tag(body_bytes, m.group(1))
+        return HTMLResponse(content=body_bytes.decode('utf-8', errors='replace'),
+                           status_code=r.status_code, headers=resp_headers)
+    return StreamingResponse(
+        r.aiter_bytes(), status_code=r.status_code, headers=resp_headers, media_type=content_type)
