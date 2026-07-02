@@ -70,6 +70,18 @@ REGISTRY: list[Service] = [
         db_label="Aktive Objekte",
     ),
     Service(
+        id="absender", name="Absender DB", url="http://localhost:8765",
+        category="Dokumente & Abfragen", icon="📇",
+        description="Absender-Konfiguration: Kategorie & Adressat-Zuordnung",
+        iframe_path="/absender",
+    ),
+    Service(
+        id="pipeline-debug", name="Pipeline Debugger", url="http://localhost:8765",
+        category="Infrastruktur", icon="🔬",
+        description="PDF-Upload: Pipeline simulieren, Override-Kaskade prüfen",
+        iframe_path="/pipeline-debug",
+    ),
+    Service(
         id="altersvorsorge", name="Altersvorsorge", url="http://localhost:8092",
         category="Dokumente & Abfragen", icon="📈",
         description="Standmitteilungen & Rentenverträge",
@@ -311,7 +323,14 @@ def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
     if (rw !== h) {{
       e.preventDefault();
       e.stopPropagation();
-      window.location.href = rw;
+      // target="_blank" → neuen Tab öffnen (sonst blockiert Chrome PDF/Download
+      // aus sandboxed iframe heraus). window.location.href würde das iframe selbst
+      // navigieren, was Chrome bei Mixed Content (HTTPS→HTTP) ablehnt.
+      if (a.getAttribute('target') === '_blank') {{
+        window.open(rw, '_blank');
+      }} else {{
+        window.location.href = rw;
+      }}
     }}
   }}, true);
 }})();
@@ -343,7 +362,7 @@ async def proxy_to_service(request: Request, service_id: str, path: str):
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "transfer-encoding", "content-length")}
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
         try:
             r = await client.request(
                 method=request.method,
@@ -384,7 +403,7 @@ async def proxy_root(request: Request, service_id: str):
     if request.url.query:
         target_url += f"?{request.url.query}"
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
         try:
             r = await client.get(target_url, headers={
                 k: v for k, v in request.headers.items()
@@ -440,7 +459,7 @@ async def proxy_api(request: Request, path: str):
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "transfer-encoding", "content-length")}
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
         try:
             r = await client.request(
                 method=request.method,
@@ -577,7 +596,7 @@ async def iframe_proxy_middleware(request: Request, call_next):
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "transfer-encoding", "content-length", "referer")}
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0), follow_redirects=True) as client:
         try:
             r = await client.request(
                 method=request.method, url=target_url, headers=headers, content=body)
