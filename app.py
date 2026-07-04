@@ -117,7 +117,7 @@ REGISTRY: list[Service] = [
     Service(
         id="molly", name="Molly", url="http://localhost:8080",
         category="Haushalt", icon="🐾",
-        description="Medikamenteneingabe & Protokollierung",
+        description="Medikationsplan — Arthrose & Ohrentzündung, Librela-Tracking",
     ),
     Service(
         id="wilson-senders", name="Email-Absender", url="http://localhost:8771",
