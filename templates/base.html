@@ -592,12 +592,21 @@
     <div class="nav-section">
       <div class="nav-label">{{ category }}</div>
       {% for svc in services %}
+      {% if svc.iframe_path == '' %}
+      <a href="{{ svc.url }}" target="_blank" rel="noopener"
+         class="nav-item">
+        <span class="nav-icon">{{ svc.icon }}</span>
+        <span class="nav-name">{{ svc.name }}</span>
+        <span class="nav-dot dot-{{ svc.status }}" data-dot="{{ svc.id }}"></span>
+      </a>
+      {% else %}
       <a href="/service/{{ svc.id }}"
          class="nav-item {% if active == svc.id %}active{% endif %}">
         <span class="nav-icon">{{ svc.icon }}</span>
         <span class="nav-name">{{ svc.name }}</span>
         <span class="nav-dot dot-{{ svc.status }}" data-dot="{{ svc.id }}"></span>
       </a>
+      {% endif %}
       {% endfor %}
     </div>
     {% endfor %}

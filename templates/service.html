@@ -268,23 +268,16 @@
         {% endif %}
         <a href="/service/{{ svc.id }}" class="btn-retry">↺ Erneut versuchen</a>
       </div>
-      {% elif is_mobile %}
+      {% else %}
       <div class="mobile-direct-link">
         <div class="mobile-direct-icon">{{ svc.icon }}</div>
         <div class="mobile-direct-info">
-          {{ svc.name }} wird auf dem iPhone in einem eigenen Tab geöffnet —
-          die eingebettete Darstellung ist auf iOS eingeschränkt.
+          {{ svc.name }} wird in einem eigenen Tab geöffnet.
         </div>
         <a href="{{ svc.url }}" target="_blank" class="mobile-direct-btn">
           🚀 {{ svc.name }} öffnen ↗
         </a>
       </div>
-      {% else %}
-      <iframe src="{{ iframe_url }}"
-              title="{{ svc.name }}"
-              loading="lazy"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-popups-to-escape-sandbox">
-      </iframe>
       {% endif %}
     </div>
   </div>

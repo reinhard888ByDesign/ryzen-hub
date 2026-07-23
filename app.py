@@ -14,6 +14,7 @@ from urllib.parse import urljoin
 import re
 
 SKILLS = Path("/home/reinhard/.claude/skills")
+RYZEN_IP = "192.168.86.195"
 
 
 def is_mobile_device(user_agent: str) -> bool:
@@ -46,7 +47,7 @@ class Service:
 
 REGISTRY: list[Service] = [
     Service(
-        id="kv", name="Krankenversicherung", url="http://localhost:8090",
+        id="kv", name="Krankenversicherung", url="http://192.168.86.195:8090",
         category="Dokumente & Abfragen", icon="💊",
         description="Leistungsabrechnungen Gothaer & HUK-Coburg",
         db_path=str(SKILLS / "leistungsabrechnung/kk_leistungen.db"),
@@ -54,7 +55,7 @@ REGISTRY: list[Service] = [
         db_label="Abrechnungen",
     ),
     Service(
-        id="kfz", name="KFZ", url="http://localhost:8094",
+        id="kfz", name="KFZ", url="http://192.168.86.195:8094",
         category="Dokumente & Abfragen", icon="🚗",
         description="Fahrzeuge, Versicherungen & Schäden",
         db_path=str(SKILLS / "kfz/kfz.db"),
@@ -62,7 +63,7 @@ REGISTRY: list[Service] = [
         db_label="Fahrzeuge",
     ),
     Service(
-        id="immobilien", name="Immobilien", url="http://localhost:8091",
+        id="immobilien", name="Immobilien", url="http://192.168.86.195:8091",
         category="Dokumente & Abfragen", icon="🏠",
         description="Eigene und vermietete Objekte",
         db_path=str(SKILLS / "immobilien/immobilien.db"),
@@ -70,19 +71,37 @@ REGISTRY: list[Service] = [
         db_label="Aktive Objekte",
     ),
     Service(
-        id="absender", name="Absender DB", url="http://localhost:8765",
+        id="absender", name="Absender DB", url="http://192.168.86.195:8765",
         category="Dokumente & Abfragen", icon="📇",
         description="Absender-Konfiguration: Kategorie & Adressat-Zuordnung",
         iframe_path="/absender",
     ),
     Service(
-        id="pipeline-debug", name="Pipeline Debugger", url="http://localhost:8765",
+        id="pipeline", name="Pipeline Live", url="http://192.168.86.195:8765/pipeline",
+        category="Infrastruktur", icon="⚡",
+        description="Live-Ansicht: Dokument-Verarbeitung in Echtzeit",
+        iframe_path="",
+    ),
+    Service(
+        id="pipeline-history", name="Pipeline History", url="http://192.168.86.195:8765/pipeline/history",
+        category="Infrastruktur", icon="📋",
+        description="Letzte 50 Verarbeitungen: Zeit, Kategorie, Status",
+        iframe_path="",
+    ),
+    Service(
+        id="batch", name="Batch Verarbeitung", url="http://192.168.86.195:8765/batch",
+        category="Infrastruktur", icon="🧰",
+        description="Batch-Rescan: PDFs neu OCR-scannen & klassifizieren",
+        iframe_path="",
+    ),
+    Service(
+        id="pipeline-debug", name="Pipeline Debugger", url="http://192.168.86.195:8765",
         category="Infrastruktur", icon="🔬",
         description="PDF-Upload: Pipeline simulieren, Override-Kaskade prüfen",
         iframe_path="/pipeline-debug",
     ),
     Service(
-        id="altersvorsorge", name="Altersvorsorge", url="http://localhost:8092",
+        id="altersvorsorge", name="Altersvorsorge", url="http://192.168.86.195:8092",
         category="Dokumente & Abfragen", icon="📈",
         description="Standmitteilungen & Rentenverträge",
         db_path=str(SKILLS / "altersvorsorge/altersvorsorge.db"),
@@ -90,7 +109,7 @@ REGISTRY: list[Service] = [
         db_label="Aktive Verträge",
     ),
     Service(
-        id="sachversicherungen", name="Sachversicherungen", url="http://localhost:8093",
+        id="sachversicherungen", name="Sachversicherungen", url="http://192.168.86.195:8093",
         category="Dokumente & Abfragen", icon="🛡️",
         description="Hausrat, Haftpflicht, Wohngebäude, Rechtsschutz",
         db_path=str(SKILLS / "sachversicherungen/sachversicherungen.db"),
@@ -98,7 +117,7 @@ REGISTRY: list[Service] = [
         db_label="Aktive Verträge",
     ),
     Service(
-        id="finanzanalyse", name="Finanzanalyse", url="http://localhost:8097",
+        id="finanzanalyse", name="Finanzanalyse", url="http://192.168.86.195:8097",
         category="Dokumente & Abfragen", icon="💰",
         description="Finanzanalyse — Transaktionen aus CSV-Import",
         health_path="/api/summary.json",
@@ -107,7 +126,7 @@ REGISTRY: list[Service] = [
         db_label="Netto-Saldo",
     ),
     Service(
-        id="aufgaben", name="Aufgaben", url="http://localhost:8096",
+        id="aufgaben", name="Aufgaben", url="http://192.168.86.195:8096",
         category="Haushalt", icon="📋",
         description="Aufgaben-Verwaltung — Anlegen, Bearbeiten, Erledigen",
         db_path="/home/reinhard/aufgaben/aufgaben.db",
@@ -115,47 +134,48 @@ REGISTRY: list[Service] = [
         db_label="Offen",
     ),
     Service(
-        id="molly", name="Molly", url="http://localhost:8080",
+        id="molly", name="Molly", url="http://192.168.86.195:8081",
         category="Haushalt", icon="🐾",
         description="Medikationsplan — Arthrose & Ohrentzündung, Librela-Tracking",
     ),
     Service(
-        id="wilson-senders", name="Email-Absender", url="http://localhost:8771",
+        id="wilson-senders", name="Email-Absender", url="http://192.168.86.195:8771",
         category="Dokumente & Abfragen", icon="📧",
         description="Wilson Email-Absenderverwaltung & Kontaktdatenbank",
     ),
     Service(
-        id="dispatcher", name="Dispatcher", url="http://localhost:8765",
+        id="dispatcher", name="Dispatcher", url="http://192.168.86.195:8765",
         category="Infrastruktur", icon="📨",
         description="Dokument-Dispatcher & Klassifikations-Pipeline",
         health_path="/api/health",
     ),
     Service(
-        id="cache-reader", name="Cache Reader", url="http://localhost:8501",
+        id="cache-reader", name="Cache Reader", url="http://192.168.86.195:8501",
         category="Infrastruktur", icon="🗄️",
         description="Docling Workflow Cache-Viewer",
         health_path="/health",
     ),
     Service(
-        id="syncthing", name="Syncthing", url="http://localhost:8384",
+        id="syncthing", name="Syncthing", url="http://192.168.86.195:8384",
         category="Infrastruktur", icon="🔄",
         description="Datei-Synchronisation",
         health_path="/rest/noauth/health",
     ),
     Service(
-        id="docling", name="Docling Serve", url="http://localhost:5001",
+        id="docling", name="Docling Serve", url="http://192.168.86.195:5001",
         category="Infrastruktur", icon="📄",
         description="PDF-Konvertierungs-API",
         health_path="/health",
         iframe_path="/docs",
     ),
     Service(
-        id="open-webui", name="Open WebUI", url="http://localhost:3000",
+        id="open-webui", name="Open WebUI", url="http://192.168.86.195:3000",
         category="KI", icon="🤖",
         description="LLM-Chat-Interface (Ollama / Claude)",
+        iframe_path="",
     ),
     Service(
-        id="ollama", name="Ollama", url="http://localhost:11434",
+        id="ollama", name="Ollama", url="http://192.168.86.195:11434",
         category="KI", icon="🧠",
         description="Lokale LLM-Inference (ROCm / AMD)",
         health_path="/api/tags",
@@ -167,7 +187,7 @@ REGISTRY: list[Service] = [
         health_path="/health",
     ),
     Service(
-        id="vault-integrity", name="Vault Integrity", url="http://localhost:8099",
+        id="vault-integrity", name="Vault Integrity", url="http://192.168.86.195:8099",
         category="Infrastruktur", icon="🔍",
         description="Vault-Integritäts-Check — 6 Phasen: Duplikate, Links, Frontmatter, Kategorien, App-Routing, Inbox",
         health_path="/api/status",

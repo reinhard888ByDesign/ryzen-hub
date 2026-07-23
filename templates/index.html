@@ -144,7 +144,7 @@
   <div class="section-header">{{ category }}</div>
   <div class="cards">
     {% for svc in services %}
-    <a href="/service/{{ svc.id }}" class="card {% if not svc.stat_value %}card-no-stat{% endif %}">
+    <a href="{{ svc.url }}" target="_blank" rel="noopener" class="card {% if not svc.stat_value %}card-no-stat{% endif %}">
       <div class="card-top">
         <div class="card-icon">{{ svc.icon }}</div>
         <div class="card-status-badge {{ 'badge-' + svc.status }}" data-badge="{{ svc.id }}">
