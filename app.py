@@ -126,6 +126,14 @@ REGISTRY: list[Service] = [
         db_label="Netto-Saldo",
     ),
     Service(
+        id="investor", name="Investor Reporting", url="http://192.168.86.195:8095",
+        category="Dokumente & Abfragen", icon="📊",
+        description="Investor-Reports: Wonderz, Xempus, Mate — KPIs & Exit-Strategien",
+        db_path=str(SKILLS / "investor-reporting/investor.db"),
+        db_query="SELECT COUNT(*) FROM reports WHERE processing_status='extracted'",
+        db_label="Reports",
+    ),
+    Service(
         id="aufgaben", name="Aufgaben", url="http://192.168.86.195:8096",
         category="Haushalt", icon="📋",
         description="Aufgaben-Verwaltung — Anlegen, Bearbeiten, Erledigen",
@@ -592,7 +600,7 @@ async def iframe_proxy_middleware(request: Request, call_next):
     path = request.url.path
 
     # Hub-eigene Pfade nicht proxieren
-    if path.startswith("/p/") or path.startswith("/service/") or path == "/api/status":
+    if path.startswith("/p/") or path.startswith("/service/") or path == "/api/status" or path.startswith("/vault-file") or path.startswith("/pdf/"):
         return await call_next(request)
 
     referer = request.headers.get("referer", "")
