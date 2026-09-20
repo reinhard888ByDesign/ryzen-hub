@@ -95,6 +95,11 @@
         esc(meta.name || '') + '</span>' +
       badgeHtml(meta.status) +
       '<span class="hub-shell-spacer"></span>';
+    if (meta.ist_admin) {
+      // Verwaltung von ueberall erreichbar (AP210) — der Hub-Patcher
+      // laesst /verwaltung unangetastet, der Klick landet also im Hub.
+      html += '<a href="/verwaltung" class="hub-shell-back" title="Benutzerverwaltung">⚙ Verwaltung</a>';
+    }
     if (meta.nutzer) {
       html += '<span class="hub-shell-user">' + esc(meta.nutzer) +
               (meta.ist_admin ? ' · Admin' : '') + '</span>';

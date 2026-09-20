@@ -15,7 +15,7 @@ from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
                                RedirectResponse, StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import re
 
 # hub_auth liegt in dms-ap (AP08). Der Import stand frueher am Dateiende,
@@ -59,6 +59,12 @@ class Service:
     rahmen: bool = True
     extern: bool = False
     widget: str = "standard"   # "standard" oder "breit" (span 2)
+    # AP210: Anzeigeformat der Kennzahl — "" = Zaehlwerk (Tausenderpunkte),
+    # "euro" = EUR-Betrag (1000er-Punkt, IMMER zwei Nachkommastellen, €).
+    # warm=True ⇒ der Hub ruft die App-Startseite alle ~4,5 Min ab, damit
+    # Seiten-Caches (z.B. Finanzanalyse, TTL 5 Min) nie kalt werden.
+    db_format: str = ""
+    warm: bool = False
     # runtime state
     status: str = "unknown"
     response_ms: Optional[int] = None
@@ -162,6 +168,8 @@ REGISTRY: list[Service] = [
         db_query="SELECT CAST(ROUND(SUM(CASE WHEN betrag_eur>0 THEN betrag_eur ELSE 0 END) - SUM(CASE WHEN betrag_eur<0 THEN ABS(betrag_eur) ELSE 0 END)) AS INTEGER) || ' €' FROM transaktionen WHERE umbuchung=0",
         db_label="Netto-Saldo",
         widget="breit",
+        db_format="euro",
+        warm=True,   # Seite wird alle 5 Min neu generiert — Cache warmhalten
     ),
     Service(
         id="goldbestand", name="Goldbestand", url="http://127.0.0.1:8098",
@@ -179,6 +187,7 @@ REGISTRY: list[Service] = [
         ),
         db_label="Materialwert",
         widget="breit",
+        db_format="euro",
     ),
     Service(
         id="medizinisches-bulletin", name="Medizinisches Bulletin", url="http://127.0.0.1:8100",
@@ -380,6 +389,43 @@ def _zahle(stat: str | None) -> Optional[float]:
     return None
 
 
+def _de_euro(wert: float) -> str:
+    """1.234,56 € — 1000er-Punkt, IMMER zwei Nachkommastellen (AP210)."""
+    vorz = "-" if wert < 0 else ""
+    us = f"{abs(wert):,.2f}"                 # "10,307.00"
+    de = us.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+    return f"{vorz}{de} €"
+
+
+def _formatiere_stat(stat: str | None, db_format: str) -> Optional[str]:
+    """Kennzahl auf die Richtlinien-Formate bringen (AP210).
+
+    db_format "euro": erste Zahl als EUR-Betrag (2 Nachkommastellen, €).
+    db_format "":     Zaehlwerk — ganzzahlige Tokens ohne Trennzeichen
+                      bekommen Tausenderpunkte; bereits formatierte
+                      Token (mit , oder .) bleiben unangetastet.
+    """
+    if not stat:
+        return stat
+    if db_format == "euro":
+        wert = _zahle(stat)
+        if wert is None:
+            return stat
+        return _de_euro(wert)
+
+    def tausender(m):
+        tok = m.group(0)
+        if "," in tok or "." in tok:
+            return tok                       # schon formatiert
+        vorz = ""
+        rest = tok
+        if rest.startswith(("-", "+")):
+            vorz, rest = rest[0], rest[1:]
+        return vorz + f"{int(rest):,}".replace(",", ".")
+
+    return RE_ZAHLE.sub(tausender, stat)
+
+
 def _spark_punkte(svc: Service, w: int = 120, h: int = 28) -> str:
     """SVG-polyline-points fuer die Sparkline eines Dienstes.
 
@@ -412,7 +458,9 @@ app.mount("/ui", StaticFiles(directory=str(Path(__file__).parent / "static" / "u
 @app.on_event("startup")
 async def on_startup():
     for svc in REGISTRY:
-        svc.stat_value = load_db_stat(svc)
+        fresh = load_db_stat(svc)
+        if fresh is not None:
+            svc.stat_value = _formatiere_stat(fresh, svc.db_format)
     asyncio.create_task(health_loop())
 
 
@@ -440,7 +488,18 @@ def _parse_health_json(response) -> str:
     return "ok"
 
 
+async def _waerme(svc: Service):
+    """App-Startseite abrufen, damit ihr Seiten-Cache nie kalt wird."""
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0),
+                                     follow_redirects=True) as client:
+            await client.get(svc.url.rstrip("/") + "/")
+    except Exception:
+        pass
+
+
 async def health_loop():
+    tick = 0
     async with httpx.AsyncClient(timeout=httpx.Timeout(3.0)) as client:
         while True:
             for svc in REGISTRY:
@@ -474,11 +533,20 @@ async def health_loop():
             for svc in REGISTRY:
                 fresh = load_db_stat(svc)
                 if fresh is not None:
-                    svc.stat_value = fresh
+                    svc.stat_value = _formatiere_stat(fresh, svc.db_format)
                     # AP210: Kennzahl in den Sparkline-Ringpuffer.
-                    wert = _zahle(fresh)
+                    # _zahle versteht das formatierte Ergebnis weiterhin.
+                    wert = _zahle(svc.stat_value)
                     if wert is not None:
                         svc.spark.append(wert)
+            # AP210: Seiten-Caches warmhalten (alle ~4,5 Min). Feuert im
+            # Hintergrund — der erste Klick des Tages soll nie in der
+            # Seitengenerierung der App haengen.
+            tick += 1
+            if tick % 9 == 0:
+                for svc in REGISTRY:
+                    if svc.warm and svc.status != "down":
+                        asyncio.create_task(_waerme(svc))
             await asyncio.sleep(30)
 
 
@@ -557,7 +625,10 @@ def _injektion(html_bytes: bytes, svc: Service, nutzer: str = "") -> bytes:
   window.__hubPatched = true;
   var prefix = '/p/{svc.id}';
   function rewrite(u) {{
-    if (typeof u === 'string' && u.startsWith('/') && !u.startsWith('/p/') && !u.startsWith('/service/') && !u.startsWith('/ui/') && u !== '/api/status') {{
+    // Hub-eigene Pfade bleiben unangetastet (AP210): sonst wuerde der
+    // Klick auf "⟨ Hub" (href="/") oder /verwaltung auf /p/<id>/...
+    // umgeschrieben und die Navigation landete wieder in der App.
+    if (typeof u === 'string' && u.startsWith('/') && !u.startsWith('/p/') && !u.startsWith('/ui/') && u !== '/api/status' && u !== '/' && u !== '/logout' && u !== '/login' && u !== '/health' && !u.startsWith('/verwaltung')) {{
       return prefix + u;
     }}
     return u;
@@ -632,6 +703,17 @@ def _injektion(html_bytes: bytes, svc: Service, nutzer: str = "") -> bytes:
         return html_bytes
 
 
+def _ziel_wurzel(svc: Service) -> str:
+    """Start-URL eines Dienstes — ohne erzwungenes "/" (AP210).
+
+    Der Dispatcher liefert /pipeline nur OHNE End-Schraegstrich; ein
+    angehaengtes "/" ergaebe dort 404. Bei Root-URLs (kein Pfad)
+    bleibt das "/", weil HTTP-Anfragen immer einen Pfad brauchen.
+    """
+    basis = svc.url.rstrip("/")
+    return basis if urlparse(basis).path else basis + "/"
+
+
 def _down_antwort(request: Request, svc: Service):
     """Hub-eigene Fehlerseite im Shell-Design statt nacktem 502 (AP210).
 
@@ -666,7 +748,7 @@ async def proxy_to_service(request: Request, service_id: str, path: str):
         return _down_antwort(request, svc)
 
     target_base = svc.url.rstrip("/")
-    target_url = f"{target_base}/{path}"
+    target_url = f"{target_base}/{path}" if path else _ziel_wurzel(svc)
     if request.url.query:
         target_url += f"?{request.url.query}"
 
@@ -720,7 +802,8 @@ async def proxy_root(request: Request, service_id: str):
     if svc.status == "down":
         return _down_antwort(request, svc)
 
-    target_url = svc.url.rstrip("/") + "/"
+    # AP210: ohne erzwungenes "/" — siehe _ziel_wurzel.
+    target_url = _ziel_wurzel(svc)
     if request.url.query:
         target_url += f"?{request.url.query}"
 
