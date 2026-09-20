@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Übersicht — Ryzen Hub{% endblock %}
+
+{% block content %}
+  <!-- Alerts: nicht erreichbare und beeinträchtigte Dienste -->
+  {% if down_services or degraded_services %}
+  <div class="alerts">
+    {% for svc in down_services %}
+    <div class="alert alert-error">
+      <span>⚠️</span>
+      <span><strong>{{ svc.icon }} {{ svc.name }}</strong> ist nicht erreichbar{% if svc.last_error %}: {{ svc.last_error }}{% endif %}</span>
+      <a href="/p/{{ svc.id }}/">Details</a>
+    </div>
+    {% endfor %}
+    {% for svc in degraded_services %}
+    <div class="alert alert-warn">
+      <span>◐</span>
+      <span><strong>{{ svc.icon }} {{ svc.name }}</strong> ist beeinträchtigt{% if svc.last_error %}: {{ svc.last_error }}{% endif %}</span>
+      <a href="/p/{{ svc.id }}/">Details</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Toolbar: Suche + Gesundheit -->
+  <div class="toolbar">
+    <input type="search" class="suchfeld" id="widget-suche"
+           placeholder="App suchen…" autocomplete="off"
+           aria-label="Apps durchsuchen">
+    <span class="zentrale-health" id="zentrale-health">
+      {{ up_count }} von {{ total }} Online · zuletzt geprüft {{ zuletzt_geprueft }}
+    </span>
+  </div>
+
+  <!-- Widgets je Kategorie -->
+  <div class="content">
+    {% for category, services in groups.items() %}
+    <div class="widget-kategorie" data-kategorie>
+      <div class="section-header">{{ category }}</div>
+      <div class="widgets">
+        {% for svc in services %}
+        <a class="widget {% if svc.widget == 'breit' %}widget--breit{% endif %}"
+           href="/p/{{ svc.id }}/{{ svc.startpfad.lstrip('/') }}"
+           {% if svc.extern %}target="_blank" rel="noopener"{% endif %}
+           data-widget="{{ svc.id }}" data-widget-name="{{ svc.name|lower }}">
+          <span class="widget-top">
+            <span class="widget-icon">{{ svc.icon }}</span>
+            <span class="badge badge-{{ svc.status }}" data-badge="{{ svc.id }}">
+              <span class="dot dot-{{ svc.status }}"></span>{{ status_label[svc.status] or '–' }}
+            </span>
+          </span>
+          <span class="widget-name">{{ svc.name }}</span>
+          <span class="widget-desc">{{ svc.description }}</span>
+          {% if svc.stat_value %}
+          <span class="widget-kpi">
+            <span class="kpi-value {% if svc.stat_value|length > 10 %}kpi-value--lang{% endif %}"
+                  data-stat="{{ svc.id }}">{{ svc.stat_value }}</span>
+            <span class="kpi-label">{{ svc.db_label or '' }}</span>
+          </span>
+          {% if svc.spark|length >= 2 %}
+          <svg class="widget-spark" viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
+            <polyline fill="none" stroke="var(--accent)" stroke-width="2"
+                      points="{{ spark_punkte(svc) }}" data-spark="{{ svc.id }}"/>
+          </svg>
+          {% endif %}
+          {% endif %}
+          <span class="widget-fuss">
+            {% if svc.response_ms %}<span class="widget-ms" data-ms="{{ svc.id }}">{{ svc.response_ms }} ms</span>{% endif %}
+            <span class="widget-pfeil">{% if svc.extern %}↗{% else %}›{% endif %}</span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+<script>
+  // ── Suche: Widgets und leere Kategorien clientseitig filtern ──────
+  (function () {
+    var feld = document.getElementById('widget-suche');
+    feld.addEventListener('input', function () {
+      var q = feld.value.trim().toLowerCase();
+      var kategorien = document.querySelectorAll('.widget-kategorie');
+      for (var i = 0; i < kategorien.length; i++) {
+        var treffer = 0;
+        var widgets = kategorien[i].querySelectorAll('[data-widget]');
+        for (var j = 0; j < widgets.length; j++) {
+          var passt = !q ||
+            widgets[j].getAttribute('data-widget-name').indexOf(q) !== -1;
+          widgets[j].style.display = passt ? '' : 'none';
+          if (passt) treffer++;
+        }
+        kategorien[i].style.display = treffer ? '' : 'none';
+      }
+    });
+  })();
+
+  // ── Live-Polling: Badges, Kennzahlen, Antwortzeit, Sparkline ──────
+  (function () {
+    var LABEL = { up: 'Online', degraded: 'Beeinträchtigt',
+                  down: 'Offline', unknown: 'Prüfe…' };
+    function badgeHtml(id, s) {
+      return '<span class="badge badge-' + s + '"><span class="dot dot-' + s +
+             '"></span>' + (LABEL[s] || '–') + '</span>';
+    }
+    function sparkPunkte(werte, w, h) {
+      w = w || 120; h = h || 28;
+      if (!werte || werte.length < 2) return '';
+      var lo = Math.min.apply(null, werte), hi = Math.max.apply(null, werte);
+      var rng = (hi - lo) || 1, rand = 3, punkte = [];
+      for (var i = 0; i < werte.length; i++) {
+        var x = (rand + (w - 2 * rand) * i / (werte.length - 1)).toFixed(1);
+        var y = (rand + (h - 2 * rand) * (1 - (werte[i] - lo) / rng)).toFixed(1);
+        punkte.push(x + ' ' + y);
+      }
+      return punkte.join(' ');
+    }
+    function aktualisieren() {
+      fetch('/api/status').then(function (r) {
+        if (!r.ok) throw new Error('status ' + r.status);
+        return r.json();
+      }).then(function (daten) {
+        for (var id in daten) {
+          var info = daten[id];
+          var badge = document.querySelector('[data-badge="' + id + '"]');
+          if (badge) badge.outerHTML = badgeHtml(id, info.status);
+          if (info.stat_value !== null) {
+            var el = document.querySelector('[data-stat="' + id + '"]');
+            if (el) el.textContent = info.stat_value;
+          }
+          var msEl = document.querySelector('[data-ms="' + id + '"]');
+          if (msEl && info.response_ms) msEl.textContent = info.response_ms + ' ms';
+          var poly = document.querySelector('[data-spark="' + id + '"]');
+          if (poly && info.spark && info.spark.length >= 2) {
+            poly.setAttribute('points', sparkPunkte(info.spark));
+          }
+        }
+        var werte = Object.keys(daten).map(function (k) { return daten[k]; });
+        var up = werte.filter(function (v) { return v.status === 'up'; }).length;
+        var ziel = document.getElementById('zentrale-health');
+        if (ziel) ziel.textContent = up + ' von ' + werte.length +
+          ' Online · zuletzt geprüft ' +
+          new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      }).catch(function () { /* still */ });
+    }
+    setInterval(aktualisieren, 30000);
+  })();
+</script>
+{% endblock %}

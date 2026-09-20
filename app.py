@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import asyncio
+import html as html_mod
+import json
 import sqlite3
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +13,7 @@ import httpx
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
                                RedirectResponse, StreamingResponse)
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from urllib.parse import urljoin
 import re
@@ -45,13 +49,25 @@ class Service:
     db_query: Optional[str] = None
     db_label: Optional[str] = None
     health_path: str = "/"
-    iframe_path: str = "/"
+    # AP210: iframe_path hiess frueher das Ziel im eingebetteten Frame;
+    # heute ist es der Startpfad der App, den die Kommandozentrale als
+    # Linkziel nutzt (z.B. /pipeline fuer den Dispatcher).
+    startpfad: str = "/"
+    # AP210: rahmen=False ⇒ der Hub injiziert keine Shell (Drittanbieter
+    # bzw. Apps, die kein fremdes Markup vertragen). extern=True ⇒ die
+    # Kommandozentrale oeffnet die App im neuen Tab statt im selben.
+    rahmen: bool = True
+    extern: bool = False
+    widget: str = "standard"   # "standard" oder "breit" (span 2)
     # runtime state
     status: str = "unknown"
     response_ms: Optional[int] = None
     last_check: Optional[datetime] = None
     last_error: Optional[str] = None
     stat_value: Optional[str] = None
+    # AP210: Ringpuffer der numerischen Kennzahl fuer die Sparkline
+    # (40 Werte ≈ 20 Minuten, In-Memory — Neustart = leere Linie).
+    spark: deque = field(default_factory=lambda: deque(maxlen=40))
 
 
 REGISTRY: list[Service] = [
@@ -92,31 +108,34 @@ REGISTRY: list[Service] = [
         id="absender", name="Absender DB", url="http://127.0.0.1:8765",
         category="Dokumente & Abfragen", icon="📇",
         description="Absender-Konfiguration: Kategorie & Adressat-Zuordnung",
-        iframe_path="/absender",
+        startpfad="/absender",
     ),
     Service(
         id="pipeline", name="Pipeline Live", url="http://127.0.0.1:8765/pipeline",
         category="Infrastruktur", icon="⚡",
         description="Live-Ansicht: Dokument-Verarbeitung in Echtzeit",
-        iframe_path="",
+        # url enthaelt bereits /pipeline — Startpfad relativ zur url
+        startpfad="/",
     ),
     Service(
         id="pipeline-history", name="Pipeline History", url="http://127.0.0.1:8765/pipeline/history",
         category="Infrastruktur", icon="📋",
         description="Letzte 50 Verarbeitungen: Zeit, Kategorie, Status",
-        iframe_path="",
+        # url enthaelt bereits /pipeline/history
+        startpfad="/",
     ),
     Service(
         id="batch", name="Batch Verarbeitung", url="http://127.0.0.1:8765/batch",
         category="Infrastruktur", icon="🧰",
         description="Batch-Rescan: PDFs neu OCR-scannen & klassifizieren",
-        iframe_path="",
+        # url enthaelt bereits /batch
+        startpfad="/",
     ),
     Service(
         id="pipeline-debug", name="Pipeline Debugger", url="http://127.0.0.1:8765",
         category="Infrastruktur", icon="🔬",
         description="PDF-Upload: Pipeline simulieren, Override-Kaskade prüfen",
-        iframe_path="/pipeline-debug",
+        startpfad="/pipeline-debug",
     ),
     Service(
         id="altersvorsorge", name="Altersvorsorge", url="http://127.0.0.1:8092",
@@ -142,6 +161,7 @@ REGISTRY: list[Service] = [
         db_path="/home/reinhard/finanzen/finanzen.db",
         db_query="SELECT CAST(ROUND(SUM(CASE WHEN betrag_eur>0 THEN betrag_eur ELSE 0 END) - SUM(CASE WHEN betrag_eur<0 THEN ABS(betrag_eur) ELSE 0 END)) AS INTEGER) || ' €' FROM transaktionen WHERE umbuchung=0",
         db_label="Netto-Saldo",
+        widget="breit",
     ),
     Service(
         id="goldbestand", name="Goldbestand", url="http://127.0.0.1:8098",
@@ -158,6 +178,7 @@ REGISTRY: list[Service] = [
             ") AS INTEGER) || ' €'"
         ),
         db_label="Materialwert",
+        widget="breit",
     ),
     Service(
         id="medizinisches-bulletin", name="Medizinisches Bulletin", url="http://127.0.0.1:8100",
@@ -208,25 +229,28 @@ REGISTRY: list[Service] = [
         category="Infrastruktur", icon="🔄",
         description="Datei-Synchronisation",
         health_path="/rest/noauth/health",
+        extern=True,   # Drittanbieter: kein Shell-Markup, neuer Tab
     ),
     Service(
         id="docling", name="Docling Serve", url="http://127.0.0.1:5001",
         category="Infrastruktur", icon="📄",
         description="PDF-Konvertierungs-API",
         health_path="/health",
-        iframe_path="/docs",
+        startpfad="/docs",
+        extern=True,   # Drittanbieter-SPA: kein Shell-Markup, neuer Tab
     ),
     Service(
         id="open-webui", name="Open WebUI", url="http://127.0.0.1:3000",
         category="KI", icon="🤖",
         description="LLM-Chat-Interface (Ollama / Claude)",
-        iframe_path="",
+        extern=True,   # Drittanbieter-SPA: kein Shell-Markup, neuer Tab
     ),
     Service(
         id="ollama", name="Ollama", url="http://127.0.0.1:11434",
         category="KI", icon="🧠",
         description="Lokale LLM-Inference (ROCm / AMD)",
         health_path="/api/tags",
+        extern=True,   # API ohne Web-UI, neuer Tab
     ),
     Service(
         id="openclaw", name="openclaw · Wilson", url="http://192.168.3.124:8095",
@@ -239,7 +263,7 @@ REGISTRY: list[Service] = [
         category="Infrastruktur", icon="🔍",
         description="Vault-Integritäts-Check — 6 Phasen: Duplikate, Links, Frontmatter, Kategorien, App-Routing, Inbox",
         health_path="/api/status",
-        iframe_path="/vault",
+        startpfad="/vault",
     ),
 ]
 
@@ -307,8 +331,82 @@ def load_db_stat(svc: Service) -> Optional[str]:
         return None
 
 
+# ── Sparkline (AP210) ────────────────────────────────────────────────
+
+RE_SUFFIX_ZAHLE = re.compile(
+    r"(-?\d[\d.,]*(?:[.,]\d+)?)\s*(€|EUR|%|kg|g/M|€/M)", re.IGNORECASE)
+RE_ZAHLE = re.compile(r"-?\d[\d.,]*(?:[.,]\d+)?")
+
+
+def _zahle(stat: str | None) -> Optional[float]:
+    """Numerische Kennzahl aus einem stat_value fuer die Sparkline.
+
+    Bevorzugt Kandidaten mit Einheit-Suffix (€/EUR/%/kg/€/M) — bei
+    Immobilien ("5 aktiv · +1.200 €/M") muss der Cashflow gewinnen,
+    nicht die Objektzahl. Tausender-/Dezimaltrenner best effort:
+    kommt nur ein , oder . vor, entscheidet die Nachkommastellenzahl
+    (3 Stellen = Tausender, 1–2 = Dezimal). Kein Treffer ⇒ None.
+    """
+    if not stat:
+        return None
+    # Nur die Zahl selbst (group 1) — das Suffix dient allein der
+    # Kandidaten-Auswahl, nicht der Zerlegung.
+    kandidaten = [m.group(1) for m in RE_SUFFIX_ZAHLE.finditer(stat)]
+    if not kandidaten:
+        kandidaten = RE_ZAHLE.findall(stat)
+    for roh in kandidaten:
+        negativ = roh.startswith("-")
+        s = roh.lstrip("-").replace("€", "").strip()
+        hat_komma = "," in s
+        hat_punkt = "." in s
+        if hat_komma and hat_punkt:
+            if s.rfind(",") > s.rfind("."):
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(",", "")
+        elif hat_komma:
+            # 1,234 → Tausender; 1,23 → Dezimal
+            nach = len(s) - s.rfind(",") - 1
+            s = s.replace(",", ".") if nach <= 2 else s.replace(",", "")
+        elif hat_punkt:
+            # Deutsch: Punkt = Tausender; 1–2 Nachkommastellen = Dezimal.
+            nach = len(s) - s.rfind(".") - 1
+            s = s.replace(".", "") if nach == 3 else s
+        try:
+            w = float(s)
+        except ValueError:
+            continue
+        return -w if negativ else w
+    return None
+
+
+def _spark_punkte(svc: Service, w: int = 120, h: int = 28) -> str:
+    """SVG-polyline-points fuer die Sparkline eines Dienstes.
+
+    Normalisierung nach dem altersvorsorge-Muster: min/max auf den
+    Zeichenbereich, einzelne Werte als flache Linie.
+    """
+    werte = list(svc.spark)
+    if len(werte) < 2:
+        return ""
+    lo, hi = min(werte), max(werte)
+    rng = (hi - lo) or 1.0
+    rand = 3
+    punkte = []
+    for i, v in enumerate(werte):
+        x = round(rand + (w - 2 * rand) * i / (len(werte) - 1), 1)
+        y = round(rand + (h - 2 * rand) * (1 - (v - lo) / rng), 1)
+        punkte.append(f"{x} {y}")
+    return " ".join(punkte)
+
+
 app = FastAPI(title="Ryzen Hub")
 templates = Jinja2Templates(directory="templates")
+
+# AP210: gemeinsame Design-Assets fuer Hub-Seiten und injizierte Shell.
+# Absoluter Pfad aus __file__ — Tests chdir-en nach ryzen-hub.
+app.mount("/ui", StaticFiles(directory=str(Path(__file__).parent / "static" / "ui")),
+          name="ui")
 
 
 @app.on_event("startup")
@@ -377,6 +475,10 @@ async def health_loop():
                 fresh = load_db_stat(svc)
                 if fresh is not None:
                     svc.stat_value = fresh
+                    # AP210: Kennzahl in den Sparkline-Ringpuffer.
+                    wert = _zahle(fresh)
+                    if wert is not None:
+                        svc.spark.append(wert)
             await asyncio.sleep(30)
 
 
@@ -409,23 +511,53 @@ def _entschaerfe_header(resp_headers: dict, svc) -> dict:
     return resp_headers
 
 
-def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
-    """Injiziert <base> und fetch/XHR-Patcher in HTML-Antworten,
-    damit absolute Pfade im iframe korrekt aufgeloest werden."""
+RE_HEAD = re.compile(r"<head>", re.IGNORECASE)
+RE_BODY = re.compile(r"<body[^>]*>", re.IGNORECASE)
+
+# FOUC-Vermeidung: data-theme auf <html>, BEVOR Stylesheets laden.
+# localStorage-Zugriff in try/catch (Safari-Privatmodus wirft).
+FOUC_SNIPPET = (
+    "<script>try{var t=localStorage.getItem('hub-theme');"
+    "if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>"
+)
+UI_EINBINDUNG = (
+    '<link rel="stylesheet" href="/ui/hub-ui.css">'
+    '<script src="/ui/hub-ui.js" defer></script>'
+)
+
+
+def _injektion(html_bytes: bytes, svc: Service, nutzer: str = "") -> bytes:
+    """Ruestet proxied HTML fuer die Plattform aus (AP210).
+
+    Wie bisher: <base> und fetch/XHR-Patcher, damit absolute Pfade
+    korrekt aufgeloest werden (jetzt mit /ui/-Ausschluss), und das
+    Umschreiben absoluter Backend-Adressen (AP08b).
+
+    Neu, nur wenn svc.rahmen: der globale Rahmen — ganz vorn im
+    <head> das FOUC-Theme-Snippet plus hub-ui.css/hub-ui.js, direkt
+    nach <body…> ein #hub-shell-Platzhalter mit den App-Metadaten.
+    Drittanbieter (extern) bekommen nichts davon: ihre CSP wuerde
+    Inline-Scripts ohnehin blockieren, ihr Markup vertraegt keine
+    Fremdelemente.
+
+    <head> und <body> werden per Regex ersetzt — case-insensitiv,
+    und body darf Attribute tragen (<body class="…">).
+    """
     try:
         html = html_bytes.decode('utf-8', errors='replace')
         if '<base ' not in html[:2000]:
-            base_tag = f'<base href="/p/{service_id}/">'
-            html = html.replace('<head>', f'<head>{base_tag}', 1)
+            html = RE_HEAD.sub(
+                lambda m: m.group(0) + f'<base href="/p/{svc.id}/">',
+                html, count=1)
 
-        # Inject fetch/XHR interceptor (nur einmal pro Seite, vor existierenden scripts)
+        # fetch/XHR-Patcher (nur einmal pro Seite, vor existierenden scripts)
         interceptor = f"""<script>
 (function(){{
   if (window.__hubPatched) return;
   window.__hubPatched = true;
-  var prefix = '/p/{service_id}';
+  var prefix = '/p/{svc.id}';
   function rewrite(u) {{
-    if (typeof u === 'string' && u.startsWith('/') && !u.startsWith('/p/') && !u.startsWith('/service/') && u !== '/api/status') {{
+    if (typeof u === 'string' && u.startsWith('/') && !u.startsWith('/p/') && !u.startsWith('/service/') && !u.startsWith('/ui/') && u !== '/api/status') {{
       return prefix + u;
     }}
     return u;
@@ -455,8 +587,8 @@ def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
     if (rw !== h) {{
       e.preventDefault();
       e.stopPropagation();
-      // target="_blank" → neuen Tab öffnen (sonst blockiert Chrome PDF/Download
-      // aus sandboxed iframe heraus). window.location.href würde das iframe selbst
+      // target="_blank" → neuen Tab oeffnen (sonst blockiert Chrome PDF/Download
+      // aus sandboxed iframe heraus). window.location.href wuerde das iframe selbst
       // navigieren, was Chrome bei Mixed Content (HTTPS→HTTP) ablehnt.
       if (a.getAttribute('target') === '_blank') {{
         window.open(rw, '_blank');
@@ -467,25 +599,59 @@ def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
   }}, true);
 }})();
 </script>"""
-        html = html.replace('<head>', f'<head>{interceptor}', 1)
+        html = RE_HEAD.sub(lambda m: m.group(0) + interceptor, html, count=1)
 
         # AP08b: absolute Backend-Adressen auf den Proxy-Pfad umbiegen.
         # Molly & Co. bauen Links aus request.base_url. Der Hub entfernt
         # den Host-Kopf, httpx setzt daraufhin 127.0.0.1:<port> - und
         # genau das landet im HTML. Der Skript-Einschub oben fasst
         # absolute URLs nicht an, er kann es also nicht auffangen.
-        svc = by_id(service_id)
-        if svc:
-            basis = svc.url.rstrip('/')
-            html = html.replace(basis, f'/p/{service_id}')
-            # Der Altbestand kann noch die LAN-Adresse enthalten. Die war
-            # vom Browser aus erreichbar - der Klick landete am Hub vorbei
-            # direkt auf dem Dashboard und umginge seit AP08 die Anmeldung.
-            port = basis.rsplit(':', 1)[-1]
-            html = html.replace(f'http://{RYZEN_IP}:{port}', f'/p/{service_id}')
+        basis = svc.url.rstrip('/')
+        html = html.replace(basis, f'/p/{svc.id}')
+        # Der Altbestand kann noch die LAN-Adresse enthalten. Die war
+        # vom Browser aus erreichbar - der Klick landete am Hub vorbei
+        # direkt auf dem Dashboard und umginge seit AP08 die Anmeldung.
+        port = basis.rsplit(':', 1)[-1]
+        html = html.replace(f'http://{RYZEN_IP}:{port}', f'/p/{svc.id}')
+
+        # AP210: Shell nur fuer eigene Apps — extern zusätzlich
+        # abgesichert, doppelt haelt besser als ein Datenfeld.
+        if svc.rahmen and not svc.extern:
+            meta = {"id": svc.id, "name": svc.name, "icon": svc.icon,
+                    "status": svc.status, "nutzer": nutzer or "",
+                    "ist_admin": bool(hub_auth.ist_admin(nutzer))}
+            attr = html_mod.escape(json.dumps(meta, ensure_ascii=False))
+            html = RE_HEAD.sub(lambda m: m.group(0) + FOUC_SNIPPET
+                               + UI_EINBINDUNG, html, count=1)
+            html = RE_BODY.sub(
+                lambda m: m.group(0)
+                + f'<div id="hub-shell" data-app="{attr}"></div>',
+                html, count=1)
         return html.encode('utf-8')
     except Exception:
         return html_bytes
+
+
+def _down_antwort(request: Request, svc: Service):
+    """Hub-eigene Fehlerseite im Shell-Design statt nacktem 502 (AP210).
+
+    Deckt zwei Faelle: health_loop kennt den Ausfall schon (Gate vor
+    dem Proxy-Aufruf) und "gerade eben gecrasht" (httpx.RequestError —
+    health_loop weiss es noch nicht). Nicht-HTML-Klienten bekommen JSON.
+    """
+    accept = request.headers.get("accept", "")
+    if "text/html" not in accept and not request.url.path.endswith("/"):
+        return JSONResponse({"error": f"Service down: {svc.id}"},
+                            status_code=503)
+    nutzer = getattr(request.state, "nutzer", "") or ""
+    meta = {"id": svc.id, "name": svc.name, "icon": svc.icon,
+            "status": "down", "nutzer": nutzer,
+            "ist_admin": bool(hub_auth.ist_admin(nutzer))}
+    return templates.TemplateResponse(
+        request, "down.html",
+        {"svc": svc,
+         "meta_json": html_mod.escape(json.dumps(meta, ensure_ascii=False))},
+        status_code=503)
 
 
 @app.api_route("/p/{service_id}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
@@ -496,6 +662,8 @@ async def proxy_to_service(request: Request, service_id: str, path: str):
     svc = by_id(service_id)
     if not svc:
         return JSONResponse({"error": f"Unknown service: {service_id}"}, status_code=404)
+    if svc.status == "down":
+        return _down_antwort(request, svc)
 
     target_base = svc.url.rstrip("/")
     target_url = f"{target_base}/{path}"
@@ -518,7 +686,9 @@ async def proxy_to_service(request: Request, service_id: str, path: str):
                 content=body,
             )
         except httpx.RequestError as e:
-            return JSONResponse({"error": f"Proxy error: {e}"}, status_code=502)
+            svc.status = "down"
+            svc.last_error = str(e)[:100]
+            return _down_antwort(request, svc)
 
     # Response headers to forward (strip hop-by-hop)
     resp_headers = {k: v for k, v in r.headers.items()
@@ -527,9 +697,10 @@ async def proxy_to_service(request: Request, service_id: str, path: str):
 
     content_type = r.headers.get("content-type", "")
     if "text/html" in content_type:
-        # HTML-Antwort: base-Tag injizieren für korrekte relative Links im iframe
+        # HTML-Antwort: base-Tag, Patcher und ggf. Shell injizieren (AP210)
         body = await r.aread()
-        body = _inject_base_tag(body, service_id)
+        body = _injektion(body, svc,
+                          getattr(request.state, "nutzer", "") or "")
         return HTMLResponse(content=body.decode('utf-8', errors='replace'),
                            status_code=r.status_code, headers=resp_headers)
     return StreamingResponse(
@@ -546,6 +717,8 @@ async def proxy_root(request: Request, service_id: str):
     svc = by_id(service_id)
     if not svc:
         return JSONResponse({"error": f"Unknown service: {service_id}"}, status_code=404)
+    if svc.status == "down":
+        return _down_antwort(request, svc)
 
     target_url = svc.url.rstrip("/") + "/"
     if request.url.query:
@@ -558,7 +731,9 @@ async def proxy_root(request: Request, service_id: str):
                 if k.lower() not in ("host", "transfer-encoding")
             })
         except httpx.RequestError as e:
-            return JSONResponse({"error": f"Proxy error: {e}"}, status_code=502)
+            svc.status = "down"
+            svc.last_error = str(e)[:100]
+            return _down_antwort(request, svc)
 
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
@@ -567,7 +742,8 @@ async def proxy_root(request: Request, service_id: str):
     content_type = r.headers.get("content-type", "")
     if "text/html" in content_type:
         body = await r.aread()
-        body = _inject_base_tag(body, service_id)
+        body = _injektion(body, svc,
+                          getattr(request.state, "nutzer", "") or "")
         return HTMLResponse(content=body.decode('utf-8', errors='replace'),
                            status_code=r.status_code, headers=resp_headers)
     return StreamingResponse(
@@ -632,42 +808,38 @@ async def proxy_api(request: Request, path: str):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    # AP202: Health-Bar und Down-Banner bekommen die GEFILTERTE Liste.
-    # Vorher stand hier REGISTRY — ein Konto mit einer einzigen Freigabe
-    # sah damit trotzdem alle Dienstnamen und Zustandswerte.
+async def zentrale(request: Request):
+    """Kommandozentrale (AP210): Live-Widgets je Dienst statt Kacheln.
+
+    Die Widgets sind die einzige Navigation zu den Apps; die
+    Seitenleiste fuehrt nur noch System-Eintraege. Health-Zeile,
+    Alerts und Widgets bekommen die gefilterte Liste (_sichtbar) —
+    kein Konto sieht Dienste, die ihm nicht freigeschaltet sind.
+    """
     sichtbar = _sichtbar()
     down = [s for s in sichtbar if s.status == "down"]
-    mobile = is_mobile_device(request.headers.get("user-agent", ""))
+    degraded = [s for s in sichtbar if s.status == "degraded"]
+    geprueft = [s.last_check for s in sichtbar if s.last_check]
     ctx = _basis_kontext(request, None)
     ctx.update({
-        "registry": sichtbar,
+        "sichtbar": sichtbar,
         "down_services": down,
+        "degraded_services": degraded,
         "total": len(sichtbar),
         "up_count": sum(1 for s in sichtbar if s.status == "up"),
-        "is_mobile": mobile,
+        "zuletzt_geprueft": max(geprueft).strftime("%H:%M") if geprueft else "—",
+        "status_label": {"up": "Online", "degraded": "Beeinträchtigt",
+                         "down": "Offline", "unknown": "Prüfe…"},
+        "spark_punkte": _spark_punkte,
     })
-    return templates.TemplateResponse(request, "index.html", ctx)
-
-
-@app.get("/service/{service_id}", response_class=HTMLResponse)
-async def service_detail(request: Request, service_id: str):
-    svc = by_id(service_id)
-    if not svc:
-        return HTMLResponse("Service not found", status_code=404)
-    mobile = is_mobile_device(request.headers.get("user-agent", ""))
-    iframe_url = f"/p/{service_id}/{svc.iframe_path.lstrip('/')}"
-    ctx = _basis_kontext(request, service_id)
-    ctx.update({
-        "svc": svc,
-        "iframe_url": iframe_url,
-        "is_mobile": mobile,
-    })
-    return templates.TemplateResponse(request, "service.html", ctx)
+    return templates.TemplateResponse(request, "zentrale.html", ctx)
 
 
 @app.get("/api/status")
 async def api_status():
+    # AP210: "spark" hat dieselbe Expositionsklasse wie stat_value —
+    # hinter der Anmeldung und gefiltert (AP08d), die Werte stammen
+    # aus den Datenbanken der Dashboards.
     return {
         svc.id: {
             "status": svc.status,
@@ -675,6 +847,7 @@ async def api_status():
             "last_check": svc.last_check.isoformat() if svc.last_check else None,
             "last_error": svc.last_error,
             "stat_value": svc.stat_value,
+            "spark": list(svc.spark),
         }
         for svc in _sichtbar()   # AP08d
     }
@@ -909,9 +1082,14 @@ async def iframe_proxy_middleware(request: Request, call_next):
     # dazu: mit einem gefaelschten Referer /p/<id>/ wuerden sonst
     # Verwaltungs-POSTs an ein Dashboard weitergereicht statt an die
     # Hub-Routen (und deren Admin-Gate).
-    if (path.startswith("/p/") or path.startswith("/service/")
+    if (path.startswith("/p/")
             or path == "/api/status" or path.startswith("/vault-file")
-            or path.startswith("/pdf/") or path.startswith("/verwaltung")):
+            or path.startswith("/pdf/") or path.startswith("/verwaltung")
+            or path.startswith("/ui/")
+            or path in ("/", "/logout", "/login", "/health", "/favicon.ico")):
+        # AP210: /ui/ liefert die Design-Assets, die uebrigen Pfade sind
+        # Hub-Ziele der Shell ("⟨ Hub" etc.) — ohne die Ausnahmen wuerde
+        # der Referer-Handler die Navigation an das Backend weiterreichen.
         return await call_next(request)
 
     referer = request.headers.get("referer", "")
@@ -922,6 +1100,8 @@ async def iframe_proxy_middleware(request: Request, call_next):
     svc = by_id(m.group(1))
     if not svc:
         return await call_next(request)
+    if svc.status == "down":
+        return _down_antwort(request, svc)
 
     # /api/* wird bereits von proxy_api() behandelt — doppeltes Proxying vermeiden
     if path.startswith("/api/"):
@@ -940,7 +1120,9 @@ async def iframe_proxy_middleware(request: Request, call_next):
             r = await client.request(
                 method=request.method, url=target_url, headers=headers, content=body)
         except httpx.RequestError as e:
-            return JSONResponse(status_code=502, content={"error": f"Proxy error: {e}"})
+            svc.status = "down"
+            svc.last_error = str(e)[:100]
+            return _down_antwort(request, svc)
 
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
@@ -949,7 +1131,8 @@ async def iframe_proxy_middleware(request: Request, call_next):
 
     if "text/html" in content_type:
         body_bytes = await r.aread()
-        body_bytes = _inject_base_tag(body_bytes, m.group(1))
+        body_bytes = _injektion(body_bytes, svc,
+                                getattr(request.state, "nutzer", "") or "")
         return HTMLResponse(content=body_bytes.decode('utf-8', errors='replace'),
                            status_code=r.status_code, headers=resp_headers)
     return StreamingResponse(
@@ -963,5 +1146,6 @@ async def iframe_proxy_middleware(request: Request, call_next):
 # Referer, um sie zu umgehen.
 #
 # Der Import selbst steht seit AP202 am Dateianfang; hier bleibt nur
-# noch der installiere()-Aufruf.
-hub_auth.installiere(app)
+# noch der installiere()-Aufruf. Der Template-Pfad versorgt seit AP210
+# das neue Login-Template (hell + dunkel, hub-ui.css).
+hub_auth.installiere(app, templates_dir=Path(__file__).parent / "templates")

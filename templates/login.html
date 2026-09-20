@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anmeldung — Ryzen Hub</title>
+  <script>try{var t=localStorage.getItem('hub-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+  <link rel="stylesheet" href="/ui/hub-ui.css">
+  <script src="/ui/hub-ui.js" defer></script>
+</head>
+<body class="hub-ui">
+  <div class="login-wrap">
+    <form method="post" action="/login" class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-mark">⚡</div>
+        <div>
+          <div class="login-logo-text">Ryzen Hub</div>
+          <div class="login-logo-sub">Lokale Infrastruktur</div>
+        </div>
+      </div>
+      <input type="hidden" name="weiter" value="{{ weiter }}">
+      <div class="v-form">
+        <div class="v-field">
+          <span>Benutzer</span>
+          <input type="text" name="nutzer" autocomplete="username" autofocus>
+        </div>
+        <div class="v-field">
+          <span>Passwort</span>
+          <input type="password" name="passwort" autocomplete="current-password">
+        </div>
+        {% if fehler %}
+        <div class="alert alert-error">{{ fehler }}</div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary" style="margin-top:6px;">Anmelden</button>
+      </div>
+    </form>
+    <button type="button" class="btn hub-theme-btn" data-hub-theme
+            aria-label="Farbschema"></button>
+  </div>
+</body>
+</html>

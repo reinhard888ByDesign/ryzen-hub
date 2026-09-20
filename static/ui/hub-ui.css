@@ -1,0 +1,782 @@
+/* ============================================================
+   Ryzen Hub UI — gemeinsame Design-Sprache (AP210)
+
+   Eine Quelle der Wahrheit fuer Hub-Seiten UND alle Apps.
+   Siehe UI-RICHTLINIE.md im Repo.
+
+   Aufbau:
+     1. Tokens hell (:root)
+     2. Tokens dunkel (prefers-color-scheme + data-theme)
+     3. Shell (#hub-shell) — vom Hub injizierter Rahmen,
+        mit eigenen Literalen (--hub-*), damit ein :root-Override
+        der App die Shell-Farben nicht kapert
+     4. .hub-ui — Reset + Komponenten fuer Hub-Seiten und
+        migrierte Apps; wirkt NIE auf fremdes App-Layout
+     5. Media Queries 768 / 390
+   ============================================================ */
+
+/* ── 1. Tokens hell ─────────────────────────────────────────────── */
+
+:root {
+  --bg:             #f5f5f7;
+  --card:           #ffffff;
+  --sidebar-bg:     rgba(255,255,255,0.82);
+  --text-1:         #1d1d1f;
+  --text-2:         #6e6e73;
+  --text-3:         #aeaeb2;
+  --accent:         #0071e3;
+  --accent-hover:   #0077ed;
+  --accent-soft:    rgba(0,113,227,0.10);
+  --on-accent:      #ffffff;
+  --green:          #34c759;
+  --green-soft:     rgba(52,199,89,0.12);
+  --ok-text:        #1a6b35;
+  --amber:          #ff9500;
+  --amber-soft:     rgba(255,149,0,0.12);
+  --warn-text:      #7c4f00;
+  --red:            #ff3b30;
+  --red-soft:       rgba(255,59,48,0.12);
+  --err-text:       #8b1a14;
+  --gray:           #8e8e93;
+  --gray-soft:      rgba(142,142,147,0.12);
+  --border:         rgba(0,0,0,0.07);
+  --border-light:   rgba(0,0,0,0.04);
+  --hover:          rgba(0,0,0,0.05);
+  --shadow-xs:      0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:      0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md:      0 4px 20px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lift:    0 8px 30px rgba(0,0,0,0.10), 0 3px 8px rgba(0,0,0,0.04);
+  --radius-sm:      8px;
+  --radius:         12px;
+  --radius-lg:      16px;
+  --sidebar-w:      248px;
+  --shell-h:        46px;
+  --font:           -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+                    'Helvetica Neue', Arial, sans-serif;
+  --font-mono:      'SF Mono', Menlo, ui-monospace, monospace;
+  --ease:           cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;
+  --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+
+  /* Shell-eigene Literale (hell) — bewusst keine var()-Aliase,
+     ein :root-Override einer App wuerde sonst durchschlagen. */
+  --hub-bg:     #ffffff;
+  --hub-text:   #1d1d1f;
+  --hub-text-2: #6e6e73;
+  --hub-border: rgba(0,0,0,0.07);
+  --hub-hover:  rgba(0,0,0,0.05);
+  --hub-accent: #0071e3;
+
+  color-scheme: light;
+}
+
+/* ── 2. Tokens dunkel ───────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg:             #161618;
+    --card:           #1f1f21;
+    --sidebar-bg:     rgba(22,22,24,0.82);
+    --text-1:         #f5f5f7;
+    --text-2:         #a1a1a6;
+    --text-3:         #6e6e73;
+    --accent:         #0a84ff;
+    --accent-hover:   #409cff;
+    --accent-soft:    rgba(10,132,255,0.18);
+    --on-accent:      #ffffff;
+    --green:          #30d158;
+    --green-soft:     rgba(48,209,88,0.16);
+    --ok-text:        #30d158;
+    --amber:          #ff9f0a;
+    --amber-soft:     rgba(255,159,10,0.16);
+    --warn-text:      #ff9f0a;
+    --red:            #ff453a;
+    --red-soft:       rgba(255,69,58,0.16);
+    --err-text:       #ff453a;
+    --gray:           #98989d;
+    --gray-soft:      rgba(152,152,157,0.16);
+    --border:         rgba(255,255,255,0.10);
+    --border-light:   rgba(255,255,255,0.06);
+    --hover:          rgba(255,255,255,0.07);
+    --shadow-xs:      0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-sm:      0 2px 8px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md:      0 4px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35);
+    --shadow-lift:    0 8px 30px rgba(0,0,0,0.55), 0 3px 8px rgba(0,0,0,0.35);
+    --hub-bg:     #1f1f21;
+    --hub-text:   #f5f5f7;
+    --hub-text-2: #a1a1a6;
+    --hub-border: rgba(255,255,255,0.10);
+    --hub-hover:  rgba(255,255,255,0.07);
+    --hub-accent: #0a84ff;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:             #161618;
+  --card:           #1f1f21;
+  --sidebar-bg:     rgba(22,22,24,0.82);
+  --text-1:         #f5f5f7;
+  --text-2:         #a1a1a6;
+  --text-3:         #6e6e73;
+  --accent:         #0a84ff;
+  --accent-hover:   #409cff;
+  --accent-soft:    rgba(10,132,255,0.18);
+  --on-accent:      #ffffff;
+  --green:          #30d158;
+  --green-soft:     rgba(48,209,88,0.16);
+  --ok-text:        #30d158;
+  --amber:          #ff9f0a;
+  --amber-soft:     rgba(255,159,10,0.16);
+  --warn-text:      #ff9f0a;
+  --red:            #ff453a;
+  --red-soft:       rgba(255,69,58,0.16);
+  --err-text:       #ff453a;
+  --gray:           #98989d;
+  --gray-soft:      rgba(152,152,157,0.16);
+  --border:         rgba(255,255,255,0.10);
+  --border-light:   rgba(255,255,255,0.06);
+  --hover:          rgba(255,255,255,0.07);
+  --shadow-xs:      0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:      0 2px 8px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:      0 4px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35);
+  --shadow-lift:    0 8px 30px rgba(0,0,0,0.55), 0 3px 8px rgba(0,0,0,0.35);
+  --hub-bg:     #1f1f21;
+  --hub-text:   #f5f5f7;
+  --hub-text-2: #a1a1a6;
+  --hub-border: rgba(255,255,255,0.10);
+  --hub-hover:  rgba(255,255,255,0.07);
+  --hub-accent: #0a84ff;
+  color-scheme: dark;
+}
+
+/* ── 3. Shell: globaler Rahmen (vom Hub injiziert) ──────────────── */
+
+#hub-shell {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: var(--shell-h);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--hub-bg);
+  border-bottom: 1px solid var(--hub-border);
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--hub-text);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  box-sizing: border-box;
+}
+#hub-shell * { box-sizing: border-box; }
+#hub-shell a { color: inherit; text-decoration: none; }
+#hub-shell .hub-shell-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+#hub-shell .hub-shell-back:hover { background: var(--hub-hover); }
+#hub-shell .hub-shell-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#hub-shell .hub-shell-spacer { flex: 1; }
+#hub-shell .hub-shell-user {
+  color: var(--hub-text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ── 4. .hub-ui: Reset + Komponenten ────────────────────────────── */
+
+.hub-ui, .hub-ui *, .hub-ui *::before, .hub-ui *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body.hub-ui {
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: var(--font);
+  display: flex;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.hub-ui a { color: inherit; }
+.hub-ui button { font-family: var(--font); }
+.hub-ui .visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+}
+.hub-ui ::-webkit-scrollbar { width: 6px; height: 6px; }
+.hub-ui ::-webkit-scrollbar-track { background: transparent; }
+.hub-ui ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.25); border-radius: 3px; }
+.hub-ui ::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.4); }
+
+/* Sidebar (nur System-Eintraege, AP210) */
+.hub-ui .sidebar {
+  width: var(--sidebar-w);
+  min-height: 100vh;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  background: var(--sidebar-bg);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 20px;
+}
+.hub-ui .sidebar::-webkit-scrollbar { width: 0; }
+.hub-ui .sidebar-logo {
+  padding: 22px 18px 18px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.hub-ui .sidebar-logo-mark {
+  width: 34px; height: 34px;
+  background: linear-gradient(145deg, #0071e3 0%, #34aadc 100%);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  box-shadow: 0 2px 8px rgba(0,113,227,0.35);
+  flex-shrink: 0;
+}
+.hub-ui .sidebar-logo-text {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+.hub-ui .sidebar-logo-sub { font-size: 11px; color: var(--text-3); letter-spacing: 0.1px; }
+
+.hub-ui .nav-section { padding: 4px 0 8px; }
+.hub-ui .nav-section + .nav-section {
+  border-top: 1px solid var(--border-light);
+  padding-top: 10px;
+}
+.hub-ui .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 1px 8px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text-1);
+  font-size: 13.5px;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+  cursor: pointer;
+}
+.hub-ui .nav-item:hover { background: var(--hover); }
+.hub-ui .nav-item.active { background: var(--accent); color: var(--on-accent); font-weight: 500; }
+.hub-ui .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.hub-ui .nav-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.hub-ui .sidebar-footer {
+  margin-top: auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-light);
+}
+.hub-ui .sidebar-user { font-size: 12px; color: var(--text-2); padding: 2px 8px 8px; }
+.hub-ui .sidebar-theme {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 1px 8px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-1);
+  font-size: 13.5px;
+  width: calc(100% - 16px);
+  cursor: pointer;
+  transition: background 0.12s var(--ease);
+}
+.hub-ui .sidebar-theme:hover { background: var(--hover); }
+
+/* Main + Topbar */
+.hub-ui .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.hub-ui .topbar {
+  padding: 28px 32px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.hub-ui .topbar-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+}
+.hub-ui .topbar-meta { font-size: 13px; color: var(--text-2); margin-left: auto; }
+.hub-ui .content { padding: 20px 32px 48px; flex: 1; }
+.hub-ui .section-header {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-3);
+  margin: 28px 0 12px;
+}
+.hub-ui .section-header:first-child { margin-top: 4px; }
+
+/* Alerts */
+.hub-ui .alerts { padding: 16px 32px 0; display: flex; flex-direction: column; gap: 8px; }
+.hub-ui .alert {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.hub-ui .alert a { font-weight: 500; text-decoration: underline; }
+.hub-ui .alert-warn  { background: var(--amber-soft); color: var(--warn-text); }
+.hub-ui .alert-error { background: var(--red-soft);   color: var(--err-text); }
+.hub-ui .alert-ok    { background: var(--green-soft); color: var(--ok-text); }
+
+/* Toolbar + Suche */
+.hub-ui .toolbar { display: flex; align-items: center; gap: 12px; padding: 20px 32px 0; flex-wrap: wrap; }
+.hub-ui .suchfeld {
+  width: 100%;
+  max-width: 340px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: var(--font);
+}
+.hub-ui .suchfeld:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.hub-ui .zentrale-health { font-size: 12px; color: var(--text-2); margin-left: auto; white-space: nowrap; }
+
+/* Status-Dots + Badges */
+.hub-ui .dot, #hub-shell .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.hub-ui .dot-up,       #hub-shell .dot-up       { background: var(--green); }
+.hub-ui .dot-degraded, #hub-shell .dot-degraded { background: var(--amber); }
+.hub-ui .dot-down,     #hub-shell .dot-down     { background: var(--red); }
+.hub-ui .dot-unknown,  #hub-shell .dot-unknown  { background: var(--gray); animation: hub-blink 2s ease-in-out infinite; }
+@keyframes hub-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.hub-ui .badge, #hub-shell .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.hub-ui .badge-up,       #hub-shell .badge-up       { background: var(--green-soft); color: var(--ok-text); }
+.hub-ui .badge-degraded, #hub-shell .badge-degraded { background: var(--amber-soft); color: var(--warn-text); }
+.hub-ui .badge-down,     #hub-shell .badge-down     { background: var(--red-soft);   color: var(--err-text); }
+.hub-ui .badge-unknown,  #hub-shell .badge-unknown  { background: var(--gray-soft);  color: var(--gray); }
+
+/* Widgets (Kommandozentrale) */
+.hub-ui .widgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.hub-ui .widget {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px 14px;
+  box-shadow: var(--shadow-xs);
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.hub-ui .widget::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 100%);
+  pointer-events: none;
+}
+.hub-ui .widget:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+.hub-ui .widget--breit { grid-column: span 2; }
+.hub-ui .widget-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.hub-ui .widget-icon { font-size: 28px; line-height: 1; }
+.hub-ui .widget-name { font-size: 14.5px; font-weight: 650; letter-spacing: -0.2px; margin-bottom: 3px; }
+.hub-ui .widget-desc { font-size: 12px; color: var(--text-2); line-height: 1.45; }
+.hub-ui .widget-kpi { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; }
+.hub-ui .widget-kpi .kpi-value { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+.hub-ui .widget-kpi .kpi-value--lang { font-size: 14px; letter-spacing: -0.2px; }
+.hub-ui .widget-kpi .kpi-label { font-size: 11px; color: var(--text-3); }
+.hub-ui .widget-spark { width: 100%; height: 28px; margin-top: 8px; display: block; }
+.hub-ui .widget-fuss {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 10px;
+}
+.hub-ui .widget-ms { font-size: 11px; color: var(--text-3); }
+.hub-ui .widget-pfeil { color: var(--text-3); font-size: 18px; margin-right: -2px; }
+
+/* Buttons */
+.hub-ui .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s var(--ease);
+  min-height: 36px;
+}
+.hub-ui .btn:hover { background: var(--hover); }
+.hub-ui .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.hub-ui .btn-primary:hover { background: var(--accent-hover); }
+.hub-ui .btn-danger { background: var(--red-soft); border-color: transparent; color: var(--err-text); }
+.hub-ui .btn-danger:hover { background: var(--red); color: #fff; }
+
+/* Formulare */
+.hub-ui .v-form { display: flex; flex-direction: column; gap: 10px; }
+.hub-ui .v-field { display: flex; flex-direction: column; gap: 4px; }
+.hub-ui .v-field > span, .hub-ui .v-hinweis { font-size: 12px; color: var(--text-2); }
+.hub-ui .v-field input[type="text"], .hub-ui .v-field input[type="password"],
+.hub-ui .v-field input[type="search"] {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text-1);
+  width: 100%;
+  font-family: var(--font);
+}
+.hub-ui .v-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.hub-ui .v-check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.hub-ui .v-check input { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+
+/* Tabellen (HubTable: sortierbar + filterbar) */
+.hub-ui .hub-table-wrap { overflow-x: auto; }
+.hub-ui .hub-table-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 340px;
+  margin-bottom: 12px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+.hub-ui .hub-table-filter .lupe { font-size: 12px; color: var(--text-3); }
+.hub-ui .hub-table-filter input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: var(--font);
+  min-width: 0;
+}
+.hub-ui .hub-table-filter input:focus { outline: none; }
+.hub-ui table.hub-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hub-ui .hub-table th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-3);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  background: var(--card);
+}
+.hub-ui .hub-table th[data-sort] { cursor: pointer; user-select: none; }
+.hub-ui .hub-table th[data-sort]:hover { color: var(--text-1); }
+.hub-ui .hub-table th[aria-sort] { color: var(--accent); }
+.hub-ui .hub-table th .sort-arrow { font-size: 9px; margin-left: 4px; opacity: 0; }
+.hub-ui .hub-table th[aria-sort] .sort-arrow { opacity: 1; }
+.hub-ui .hub-table td { padding: 7px 12px; border-bottom: 1px solid var(--border-light); color: var(--text-1); }
+.hub-ui .hub-table tbody tr:hover { background: var(--hover); }
+.hub-ui .hub-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hub-ui .hub-table .num-neg { color: var(--err-text); }
+.hub-ui .hub-table .foot-row td { border-top: 1px solid var(--border); font-weight: 600; background: var(--card); }
+.hub-ui .hub-table-leer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+}
+.hub-ui .hub-table-leer .empty-icon { font-size: 28px; opacity: 0.5; }
+.hub-ui .hub-table-leer .empty-title { font-size: 14px; font-weight: 600; }
+.hub-ui .hub-table-leer .empty-text { font-size: 12px; color: var(--text-2); max-width: 320px; line-height: 1.5; }
+
+/* Leerzustand */
+.hub-ui .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-2);
+}
+.hub-ui .empty-state-icon { font-size: 48px; opacity: 0.4; }
+.hub-ui .empty-state-title { font-size: 18px; font-weight: 600; color: var(--text-1); }
+.hub-ui .empty-state-text { font-size: 13px; max-width: 360px; line-height: 1.6; }
+
+/* Down-Zustand */
+.hub-ui .down-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: calc(100vh - var(--shell-h) - 80px);
+  color: var(--text-2);
+  text-align: center;
+  padding: 40px;
+}
+.hub-ui .down-state-icon { font-size: 48px; opacity: 0.4; }
+.hub-ui .down-state-title { font-size: 18px; font-weight: 600; color: var(--text-1); }
+.hub-ui .down-state-msg { font-size: 13px; max-width: 360px; line-height: 1.6; }
+.hub-ui .down-state-error {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 14px;
+  background: var(--hover);
+  border-radius: 6px;
+  color: var(--red);
+  max-width: 400px;
+  word-break: break-all;
+}
+
+/* Login */
+.hub-ui .login-wrap {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  background: var(--bg);
+}
+.hub-ui .login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 28px 30px;
+  width: min(92vw, 340px);
+}
+.hub-ui .login-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.hub-ui .login-logo-mark {
+  width: 34px; height: 34px;
+  background: linear-gradient(145deg, #0071e3 0%, #34aadc 100%);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  box-shadow: 0 2px 8px rgba(0,113,227,0.35);
+}
+.hub-ui .login-logo-text { font-size: 15px; font-weight: 650; letter-spacing: -0.3px; }
+.hub-ui .login-logo-sub { font-size: 11px; color: var(--text-3); }
+.hub-ui .login-theme { align-self: flex-end; }
+
+/* Verwaltung (AP202-Komponenten auf Token-Basis) */
+.hub-ui .v-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-xs);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.hub-ui .nutzer-zeile { display: flex; align-items: center; gap: 12px; }
+.hub-ui .nutzer-zeile .nutzer-info { flex: 1; min-width: 0; }
+.hub-ui .nutzer-zeile .nutzer-name { font-size: 15px; font-weight: 650; }
+.hub-ui .badge-admin {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.hub-ui .v-konto-freigabe { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.hub-ui .dienst-gruppe { margin: 6px 0 2px; }
+.hub-ui .dienst-gruppe-titel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-3);
+  margin: 10px 0 4px;
+}
+.hub-ui .dienst-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  cursor: pointer;
+  user-select: none;
+}
+.hub-ui .dienst-row:hover { background: var(--hover); }
+.hub-ui .dienst-row input { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+.hub-ui .dienst-row .dienst-id {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* Hamburger (desktop versteckt) */
+.hub-ui .hamburger { display: none; }
+.hub-ui .sidebar-overlay { display: none; }
+
+/* ── 5. Media Queries ────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+
+  #hub-shell { padding: 0 8px; gap: 6px; }
+  #hub-shell .hub-shell-user { display: none; }
+  #hub-shell .hub-shell-title { max-width: 40vw; }
+  #hub-shell .hub-theme-btn { min-width: 44px; min-height: 44px; padding: 0 10px; }
+
+  .hub-ui .hamburger {
+    display: flex;
+    position: fixed;
+    top: 10px; left: 10px;
+    z-index: 1100;
+    width: 44px; height: 44px;
+    align-items: center; justify-content: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    font-size: 20px;
+    transition: transform 0.15s var(--ease);
+    color: var(--text-1);
+  }
+  .hub-ui .hamburger:active { transform: scale(0.94); }
+  .hub-ui .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    width: 280px;
+    z-index: 1000;
+    box-shadow: var(--shadow-lift);
+  }
+  .hub-ui .sidebar.open { transform: translateX(0); }
+  .hub-ui .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 900;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .hub-ui .sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+  .hub-ui .main { margin-left: 0 !important; }
+  .hub-ui .topbar { padding: 14px 14px 0 56px; flex-direction: column; gap: 4px; }
+  .hub-ui .topbar-title { font-size: 20px; }
+  .hub-ui .topbar-meta { margin-left: 0; font-size: 12px; }
+  .hub-ui .content { padding: 8px 10px 40px; }
+  .hub-ui .section-header { margin-top: 12px; margin-bottom: 6px; font-size: 10.5px; }
+  .hub-ui .alerts { padding: 8px 10px 0; }
+  .hub-ui .toolbar { padding: 10px 10px 0; gap: 8px; }
+  .hub-ui .suchfeld { max-width: none; }
+  .hub-ui .zentrale-health { margin-left: 0; }
+
+  .hub-ui .widgets { grid-template-columns: 1fr; gap: 8px; }
+  .hub-ui .widget--breit { grid-column: span 1; }
+  .hub-ui .widget { padding: 10px 12px; border-radius: var(--radius); }
+  .hub-ui .widget:hover { transform: none; }
+  .hub-ui .widget:active { transform: scale(0.985); transition: transform 0.08s; }
+  .hub-ui .widget-icon { font-size: 26px; }
+  .hub-ui .widget-desc { display: none; }
+  .hub-ui .widget-spark { height: 22px; }
+
+  .hub-ui .v-card { padding: 12px 14px; }
+  .hub-ui .nutzer-zeile { flex-wrap: wrap; }
+  .hub-ui .nutzer-zeile .nutzer-info { flex-basis: 100%; }
+  .hub-ui .nutzer-zeile .btn { flex: 1; min-height: 44px; }
+  .hub-ui .v-form .btn { width: 100%; min-height: 44px; }
+  .hub-ui .dienst-row { min-height: 44px; padding: 8px 6px; }
+  .hub-ui .dienst-row input, .hub-ui .v-check input { width: 20px; height: 20px; }
+
+  .hub-ui .hub-table { font-size: 12px; }
+  .hub-ui .hub-table th, .hub-ui .hub-table td { padding: 6px 8px; }
+  .hub-ui .hub-table-filter { max-width: none; }
+}
+
+@media (max-width: 390px) {
+  .hub-ui .topbar-title { font-size: 18px; }
+  .hub-ui .widget-icon { font-size: 22px; }
+  .hub-ui .widget-name { font-size: 13px; }
+  .hub-ui .widget-kpi .kpi-value { font-size: 14px; }
+  .hub-ui .widget-kpi .kpi-value--lang { font-size: 11px; }
+  .hub-ui .badge { font-size: 9px; padding: 2px 6px; }
+  #hub-shell { font-size: 12px; }
+}

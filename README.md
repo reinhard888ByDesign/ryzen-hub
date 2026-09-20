@@ -55,6 +55,25 @@ Befehlszeile (Alternative zur Web-Oberfläche): `dms-ap/hub_auth.py`
 (`--passwort-setzen`, `--dienste-setzen`, `--admin-setzen`, `--liste`,
 `--loeschen`). Details: `dms-ap/KONTEN_HUB.md` und `dms-ap/AP202_ERGEBNIS.md`.
 
+## Kommandozentrale & Design-System (AP210)
+
+Die Startseite ist ein Live-Betriebs-Dashboard: ein Widget je Dienst
+(Status-Badge, Kennzahl, Sparkline), gruppiert nach Kategorie, mit
+Suche und Alert-Streifen. Die Widgets sind die einzige Navigation zu
+den Apps; die Seitenleiste führt nur System-Einträge.
+
+- **Globaler Rahmen:** Der Hub injiziert eine schlanke Kopfzeile
+  („⟨ Hub", App-Name, Status, Konto, Farbschema) in jede eigene App —
+  Apps öffnen im selben Tab. Drittanbieter (`extern=True`) öffnen im
+  neuen Tab.
+- **Hell + Dunkel:** automatisch nach Systemeinstellung, mit
+  dreistufigem Umschalter (Auto/Hell/Dunkel).
+- **Gemeinsame Assets:** `/ui/hub-ui.css` + `/ui/hub-ui.js`
+  (Design-Tokens, Shell, HubTable: sortier- und filterbare Tabellen).
+- **Verbindliche Regeln für alle Apps:** `UI-RICHTLINIE.md` —
+  Design-Tokens, Komponenten, Formate (EUR immer mit 1000er-Punkt
+  und zwei Nachkommastellen), Status-Semantik, Migrations-Checkliste.
+
 ## Starten / Stoppen
 
 ```bash
@@ -79,7 +98,8 @@ Tests: `python3 /home/reinhard/dms-ap/test_hub_verwaltung.py`
   Überwachung von außen).
 - `GET /api/status` — hinter der Anmeldung, gefiltert auf die
   Freigaben des Kontos: Status aller Dienste (up/degraded/down/unknown),
-  Response-Zeit in ms, letzter Fehler, DB-Kennzahlen.
+  Response-Zeit in ms, letzter Fehler, DB-Kennzahlen und Sparkline-Werte.
+- `/ui/…` — statische Design-Assets (hub-ui.css, hub-ui.js), frei.
 
 Der Healthcheck (`~/.local/bin/ryzen-hub-healthcheck.sh`, Cron alle
 15 Min) meldet sich als Monitor-Konto an; das Passwort liegt in

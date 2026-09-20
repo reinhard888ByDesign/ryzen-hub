@@ -1,0 +1,364 @@
+# Ryzen Hub — UI-Richtlinie
+
+Verbindliche Design-Anweisung für alle Apps der Ryzen-Plattform.
+Stand: 20.09.2026 · AP210 · Version 1.0
+
+---
+
+## 1. Zweck & Geltung
+
+Diese Richtlinie macht aus 25 einzelnen Web-Oberflächen **eine Plattform**:
+gleiche Farbwelt, gleiche Bausteine, gleiche Formate, gleiches Verhalten —
+hell und dunkel, auf Desktop und iPhone.
+
+Sie gilt:
+
+- **verbindlich** für alle Hub-Seiten (Übersicht, Verwaltung, Anmeldung);
+- **verbindlich** für jede App-Migration (Folge-Arbeitspakete, Reihenfolge
+  in Abschnitt 11);
+- **nicht** für Drittanbieter-Apps (`extern=True`: open-webui, syncthing,
+  docling, ollama) — die bleiben unverändert und öffnen im neuen Tab.
+
+## 2. Grundsätze
+
+1. **Eine Quelle der Wahrheit.** Design und Verhalten kommen aus
+   `/ui/hub-ui.css` und `/ui/hub-ui.js` — der Hub liefert beide aus.
+   Apps referenzieren sie nur, sie kopieren sie nie.
+2. **Die Shell kommt vom Hub.** Der Hub injiziert die Kopfzeile
+   („⟨ Hub", App-Name, Status, Konto, Farbschema) in jede App-Seite.
+   Apps rendern **keine eigene Kopfzeile, keine eigene Navigation,
+   keine eigene Sidebar** — nur Inhalt.
+3. **Token statt Literale.** Keine hartkodierten Farben (#hex) im
+   App-Code; alles über CSS-Variablen. Ausnahme: die eine
+   Domänen-Akzentfarbe (Abschnitt 8b).
+4. **Farbe nie allein.** Status wird immer mit Icon **und** Text
+   dargestellt — nie nur durch Farbe (Regel aus dem Medizinischen
+   Bulletin, deckt sich mit den Dataviz-Vorgaben).
+5. **System-Font-Stack.** `-apple-system, BlinkMacSystemFont, …` —
+   kein Webfont-Download.
+6. **Keine Chart-/JS-Bibliothek.** Das einzige Chart-Muster ist die
+   SVG-Polyline (Sparkline, Abschnitt 7). Kein Chart.js/echarts/d3,
+   kein CDN, kein jQuery.
+7. **Deutsch.** Alle UI-Texte deutsch; englische KPI-Begriffe werden
+   übersetzt (Ausnahme: feststehende Eigennamen).
+8. **Mobile-Pflicht.** Jede Seite funktioniert bis 390 px Breite
+   (Abschnitt 10).
+9. **PFLICHT — sortier- und filterbare Listen.** Jede Listenansicht,
+   die aus SQL-Datenbanken kommt, ist **pro Spalte sortierbar und
+   filterbar** — über die gemeinsame HubTable-Referenz
+   (Abschnitt 7, „Tabelle"). Keine App baut eigene Sortier- oder
+   Filter-Logik; sie markiert nur das Markup.
+
+## 3. Einbindung für Apps
+
+Jede App-Seite bindet exakt einmal ein:
+
+```html
+<head>
+  <script>try{var t=localStorage.getItem('hub-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+  <link rel="stylesheet" href="/ui/hub-ui.css">
+  <script src="/ui/hub-ui.js" defer></script>
+</head>
+<body class="hub-ui">
+```
+
+Erläuterungen:
+
+- Das kleine Script **vor** dem Stylesheet verhindert das Aufblitzen
+  des falschen Farbschemas (FOUC). Es muss vor jedem `<link>` stehen.
+- `class="hub-ui"` auf `<body>` aktiviert Reset + Komponenten.
+- App-Inhalte liegen in `.container` (max-width 960 px, zentriert).
+- Der Hub ergänzt bei eigenen Apps (`rahmen=True`) automatisch Shell,
+  Assets und den Pfad-Patcher — die App braucht sich darum nicht zu
+  kümmern. Migrierte Apps lassen ihre eigene Einbindung trotzdem
+  stehen (die Injection erkennt Dopplungen; der `__hubUi`-Guard in
+  hub-ui.js verhindert Doppel-Init).
+
+**Domänen-Akzent:** Wer eine eigene Akzentfarbe führen will, setzt
+**eine** Variable im `<head>`-Style (z. B. `<style>body.hub-ui{--app-accent:#b8860b}</style>`)
+und nutzt im Inhalt nur `var(--app-accent)`. Kern-Tokens dürfen nicht
+überschrieben werden.
+
+## 4. Design-Tokens
+
+Alle Farben, Abstände, Radien und Schatten kommen aus `hub-ui.css`.
+Auszug (vollständige Liste = Datei selbst, Abschnitt 1–2):
+
+### Helles Schema
+
+| Rolle | Token | Wert |
+|---|---|---|
+| Hintergrund | `--bg` | `#f5f5f7` |
+| Karte | `--card` | `#ffffff` |
+| Text 1/2/3 | `--text-1/-2/-3` | `#1d1d1f` / `#6e6e73` / `#aeaeb2` |
+| Akzent (+hover/soft) | `--accent` | `#0071e3` (`#0077ed`, `rgba(0,113,227,.10)`) |
+| Status grün / amber / rot / grau | `--green` / `--amber` / `--red` / `--gray` | `#34c759` / `#ff9500` / `#ff3b30` / `#8e8e93` (je + `-soft`-Hintergrund und `-text`-Textfarbe) |
+| Rahmen | `--border` / `--border-light` | `rgba(0,0,0,.07)` / `rgba(0,0,0,.04)` |
+| Radien | `--radius-sm/-radius/-radius-lg` | `8px` / `12px` / `16px` |
+
+### Dunkles Schema
+
+Dieselben Tokens, andere Werte: `--bg #161618`, `--card #1f1f21`,
+Text `#f5f5f7`/`#a1a1a6`/`#6e6e73`, Akzent `#0a84ff`, Status
+`#30d158`/`#ff9f0a`/`#ff453a`/`#98989d`, Rahmen weiß-transparent.
+`color-scheme` wird je Schema gesetzt (native Controls, Scrollbars).
+
+### Skalen
+
+- **Abstände:** `--sp-1…--sp-6` = 4/8/12/16/24/32 px.
+- **Typografie:** 11 (Labels) · 12 (Meta) · 13 (Fließtext) · 14.5
+  (Kartentitel) · 20 (Widget-KPI) · 24 (Seitentitel) px.
+- **Motion:** `--ease: cubic-bezier(.25,.46,.45,.94)`, Übergänge
+  0,12–0,18 s, keine Animationen über 0,3 s.
+- **Maße:** Sidebar 248 px, Shell-Höhe 46 px.
+
+## 5. Status-Semantik
+
+| Status | Anzeige | Farbe | Bedeutung |
+|---|---|---|---|
+| `up` | ● Online | `--green` | Health-Check HTTP < 500, Health-JSON ok |
+| `degraded` | ◐ Beeinträchtigt | `--amber` | HTTP ≥ 500 oder Health-JSON „degraded" |
+| `down` | × Offline | `--red` | Keine Antwort |
+| `unknown` | … Prüfe… (pulsiert) | `--gray` | Noch kein Check (max. 30 s nach Neustart) |
+
+Darstellung: Badge = Soft-Hintergrund (`-soft`) + Textfarbe (`-text`)
++ Icon + Label — **nie Farbe allein**. Der Punkt (`.dot`) ist die
+Kompaktform in Listen, ersetzt aber nie das Label.
+
+## 6. Seitenaufbau
+
+**Hub-Seiten:** Sidebar (nur System: Übersicht, Verwaltung [Admin],
+Konto, Farbschema, Abmelden) + Inhalt mit 32 px Rand; Alerts stehen
+oben über dem Inhalt.
+
+**App-Seiten:** Shell (kommt vom Hub) + `.container` mit App-Inhalt:
+
+```
+┌─────────────────────────────────────────────┐
+│ ⟨ Hub   💊 KV   ● Online     reinhard  ☯    │  ← Shell (injiziert)
+├─────────────────────────────────────────────┤
+│  .container (max-width 960px, zentriert)    │
+│  ┌───────────────┐  ┌───────────────┐       │
+│  │ KPI-Karte     │  │ KPI-Karte     │       │
+│  └───────────────┘  └───────────────┘       │
+│  Tabelle (HubTable: sortierbar + filterbar) │
+└─────────────────────────────────────────────┘
+```
+
+## 7. Komponenten-Katalog
+
+Je Komponente: Zweck, Klassen, Zustände, Dos/Don'ts.
+
+### Shell
+`#hub-shell` — injiziert der Hub. Apps: **nichts tun**. Sticky oben,
+Höhe `--shell-h`, enthält Zurück-Link, App-Icon+Name, Status-Badge
+(pollt alle 30 s), Konto, Farbschema-Umschalter.
+
+### Widget / KPI-Karte (Kommandozentrale)
+Klasse `widget` (+ `widget--breit` = 2 Spalten). Aufbau: Icon, Name,
+Beschreibung, Status-Badge, KPI-Wert + Label, Sparkline, Fußzeile.
+Die KPI-Karte **in** einer App nutzt dieselben Klassen (`widget-kpi`,
+`kpi-value`, `kpi-label`) ohne Verlinkung.
+
+### Tabelle — PFLICHT für jede SQL-Liste
+Deklaratives HubTable-Markup, Sortierung + Filter kommen automatisch
+aus `hub-ui.js`:
+
+```html
+<div class="hub-table-wrap">
+  <table class="hub-table" data-sort data-filter="Suchen…">
+    <thead>
+      <tr>
+        <th data-sort data-sort-erste="1">Datum</th>       <!-- Vorsortierung -->
+        <th data-sort data-sort-typ="text">Leistungserbringer</th>
+        <th data-sort data-sort-typ="euro">Betrag</th>     <!-- 1.234,56 € -->
+        <th data-sort data-sort-typ="datum">Belegdatum</th> <!-- DD.MM.YYYY -->
+      </tr>
+    </thead>
+    <tbody>…</tbody>
+  </table>
+</div>
+```
+
+Regeln:
+
+- **Sortier-Typen:** `text` (Standard), `zahl`, `euro`, `datum` —
+  die Parser verstehen die deutschen Formate aus Abschnitt 8.
+- Klick auf den Kopf toggelt auf/ab (Pfeil + `aria-sort`); leere
+  Zellen sortieren immer ans Ende.
+- `data-filter="Platzhaltertext"` erzeugt das Suchfeld über der
+  Tabelle; gefiltert wird über den sichtbaren Text; null Treffer ⇒
+  Leerzustand mit „Filter zurücksetzen".
+- Zahlen rechtsbündig mit `.num`, negativ zusätzlich `.num-neg`.
+- Summenzeile: `<tr class="foot-row">` in einem zweiten `<tbody>`.
+- Sortierung/Filter laufen clientseitig über die gerenderte Tabelle —
+  ausreichend für die Größenordnungen aller Dashboards. Für sehr
+  große Datenmengen (als dokumentierte Ausnahme): Server-Sortierung
+  mit Query-Parametern `?sort=<spalte>&richtung=auf|ab&f=<text>`.
+
+### Formular
+`.v-form` (Spaltenlayout, 10 px Abstand), `.v-field` (Label +
+Eingabefeld), Fokus: Akzentrahmen + `3px` Akzent-Soft-Schein.
+Checkboxen mit `accent-color`. Fehlertext unter dem Feld in
+`--err-text`, niemals nur roter Rahmen.
+
+### Buttons
+`.btn` (Standard), `.btn-primary` (eine Aktion pro Seite),
+`.btn-danger` (nur zerstörende Aktionen, mit Rückfrage). Mindesthöhe
+36 px, mobil 44 px.
+
+### Badges / Status
+`.badge` + `.badge-up/-degraded/-down/-unknown` (Abschnitt 5).
+Domänen-Badges (z. B. Länder, Kassen) folgen demselben Muster:
+Soft-Hintergrund + Textfarbe + kurzes Label.
+
+### Alerts
+`.alert-error` / `.alert-warn` / `.alert-ok` — Icon + aussagekräftiger
+Text + optionale Aktion. Stehen am Seitenanfang über dem Inhalt.
+
+### Leerzustand
+`.empty-state`: Icon (48 px, gedämpft), Titel, erklärender Satz,
+optionale Aktion. **Pflicht** für jede leere Liste — „0 Zeilen" ohne
+Erklärung ist verboten.
+
+### Fehlerzustand / Down
+`.down-state`: Icon, „{App} ist nicht erreichbar", `last_error` in
+Monospace, „↺ Erneut versuchen". Der Hub liefert diese Seite
+automatisch (503), Apps müssen sie nicht selbst bauen.
+
+### Dialog / Modal
+Muster aus der Aufgaben-App: Overlay + Karte, schließen per Esc,
+Klick aufs Overlay und Abbrechen-Button. Bestätigen heißt
+„Löschen"/„Speichern", nie „OK".
+
+### Tabs
+**Eine** Referenz-Implementierung (Pill-Tabbar aus der KV-App):
+Inline-Links, aktiver Tab = Akzent-Hintergrund + weiße Schrift,
+Radius nur außen. Die vier bisherigen Varianten (Helfer-Funktion,
+kopierte Links, Client-JS) werden bei der Migration vereinheitlicht.
+
+### Sparkline / Chart
+Das **einzige** Chart-Muster: SVG-Polyline.
+
+```html
+<svg viewBox="0 0 120 28" preserveAspectRatio="none" aria-hidden="true">
+  <polyline fill="none" stroke="var(--accent)" stroke-width="2" points="…"/>
+</svg>
+```
+
+Normalisierung min/max auf den Zeichenbereich (Vorlage: `_spark_punkte()`
+in `ryzen-hub/app.py` und das Muster in altersvorsorge/dashboard.py).
+Tooltips als SVG-`<title>`-Element. Keine Balken-`<div>`-Konstrukte
+(finanzen), keine Bibliotheken.
+
+## 8. Verbindliche Formate
+
+| Was | Format | Beispiel |
+|---|---|---|
+| **EUR-Beträge** | **PFLICHT: 1000er-Punkt und IMMER genau zwei Nachkommastellen** — auch bei runden Beträgen | `1.234,56 €` · `1.234,00 €` |
+| Stückzahlen | 1000er-Punkt, keine Nachkommastellen | `1.234` |
+| Prozente | ein Dezimal-Komma | `4,2 %` |
+| Datum | `DD.MM.YYYY` (zweistellig Tag/Monat) | `05.03.2026` |
+| Uhrzeit | `HH:MM` | `14:05` |
+| Antwortzeit | ganzzahlig | `42 ms` |
+| Betragsfarben | negativ: `--err-text` **mit Minuszeichen**; positiv: normale Textfarbe. **Grün ist für Status reserviert — nie für Geld.** | `−123,45 €` |
+
+Referenzfunktion (locale-unabhängig, in jede App übernehmbar):
+
+```python
+def format_euro(betrag: float) -> str:
+    """EUR-Betrag: 1000er-Punkt, IMMER zwei Nachkommastellen."""
+    vorzeichen = "-" if betrag < 0 else ""
+    ganz, dez = f"{abs(betrag):,.2f}".split(".")
+    tausender = ganz.replace(",", ".")
+    return f"{vorzeichen}{tausender},{dez} €"
+```
+
+Beispiele: `format_euro(1234)` → `"1.234,00 €"`,
+`format_euro(-42.5)` → `"-42,50 €"`.
+
+## 8b. Farbwelt
+
+**Eine Basis für alle, ein Akzent je Domäne** (Entscheidung 20.09.2026):
+
+- Grundfarben (Hintergrund, Karten, Text, Rahmen, Schatten) und
+  **Statusfarben** (grün/amber/rot/grau) sind überall identisch —
+  nicht verhandelbar.
+- Jede App darf **eine** Domänen-Akzentfarbe über `--app-accent`
+  führen, aus dieser festen Zuordnung:
+
+| Akzent | Wert | Apps |
+|---|---|---|
+| Blau | `#0071e3` | Standard: KV, KFZ, Immobilien, Altersvorsorge, Sachversicherungen, Absender, Pipeline-Gruppe, Vault Integrity, Aufgaben |
+| Gold | `#b8860b` | Goldbestand |
+| Teal | `#0d6e6e` | Medizinisches Bulletin, Molly |
+| Violett | `#8b5cf6` | Finanzen, Investor Reporting |
+
+Weitere Akzente sind nicht vorgesehen; neue Apps ordnen sich einer
+bestehenden Farbe zu.
+
+## 9. Theme (hell/dunkel)
+
+- **Automatik** (`prefers-color-scheme`) ist der Standard; der
+  Umschalter (Shell, Sidebar, Anmeldung) dreht dreistufig:
+  Auto → Hell → Dunkel → Auto. Auswahl liegt in
+  `localStorage['hub-theme']` (leer/`light`/`dark`) und steuert
+  `data-theme` auf `<html>`.
+- **Regeln für Apps:** alle Farben über Tokens (nie hartkodiert),
+  beide Schemata testen, `color-scheme` nicht selbst setzen (kommt
+  aus hub-ui.css).
+
+## 10. Mobile-Pflicht
+
+- Breakpoints **768 px** und **390 px**; Grids fallen auf 1 Spalte,
+  breite Widgets auf volle Breite.
+- **Tap-Ziele ≥ 44 px**; Tabellen bekommen horizontalen Scroll
+  (`.hub-table-wrap`), Kernspalten zuerst.
+- Shell im Kompaktmodus (Zurück, Name, Badge, Theme); die App selbst
+  braucht **keine eigene mobile Navigation** — die kommt vom Hub.
+- Jede neue Seite wird auf iPhone-Breite geprüft.
+
+## 11. Migrations-Checkliste je App
+
+Gemeinsam für alle („Sippe" = die 9 FastAPI-Apps mit Inline-CSS):
+
+- Inline-`CSS = """…"""` und die kopierte `:root`-Zeile entfernen →
+  `/ui/hub-ui.css` einbinden (Abschnitt 3).
+- **Jede SQL-Tabelle** auf HubTable-Markup umstellen
+  (`data-sort`/`data-filter`/`data-sort-typ`) — keine eigene
+  Sortier-/Filter-Logik behalten.
+- Alle EUR-Ausgaben über `format_euro()` (zwei Nachkommastellen!).
+- Datumswerte auf `DD.MM.YYYY` bringen.
+- Statusgrüns/-rots vereinheitlichen (`--green` etc.).
+- Tabbar auf die eine Referenz-Implementierung.
+- Mobile-Media-Queries ergänzen/prüfen.
+
+Einzelbefunde (aus der UI-Inventur 09/2026):
+
+| App (Port) | Befunde → zu tun |
+|---|---|
+| molly (8081) | Warmes Beige als `--app-accent` erlaubt (Zuordnung: Teal); **355-px-Sidebar entfernen** (Shell ersetzt sie); keine CSS-Variablen → Token-Gerüst; **keine Media-Query** → Mobile-Pflicht |
+| leistungsabrechnung (8090) | **Marion-Farbe** `#c7254e` vs. altersvorsorge grün → einheitliche Personenfarben festlegen; nacktes `.2f` → `format_euro()`; Tabbar vereinheitlichen |
+| kfz (8094) | **DE/IT-Badges vertauscht** vs. sachversicherungen (DE=orange/IT=blau vs. DE=blau/IT=orange) → eine Konvention; US-Formate → deutsch; dunkle PDF-Viewer-Seite (`#333`) → Tokens; größte Listen → HubTable zuerst |
+| sachversicherungen (8093) | Badge-Konflikt s. kfz; US-Formate → deutsch |
+| altersvorsorge (8092) | Sparkline-Muster ist die Referenz (dokumentiert); `1,234.56` → deutsch; Marion grün (Konflikt s. leistungsabrechnung) |
+| aufgaben (8096) | Modal/Bulk-Aktionen als Dialog-Referenz dokumentieren; `--muted:#888` → Tokens; Tabellen → HubTable |
+| finanzen (8097) | CSS-Div-Balken → SVG-Sparkline-Muster; Netto-Saldo → `format_euro()`; leere `chart-card img`-Reste entfernen |
+| goldbestand (8098) | Akzent `#b8860b` → `--app-accent` auf Token-Gerüst; Tabellen → HubTable |
+| investor (8095) | Englische KPI-Labels → Deutsch; Client-JS-Tabs → Referenz-Tabbar; Gauge-Farben → Tokens |
+| immobilien (8091) | Zusammengesetzte Kennzahl („5 aktiv · +1.200 €/M") → KPI + Sub-Label trennen; Formate |
+| vault-integrity (8099) | Externe CSS-Architektur ist das Vorbild (behalten); Hartcodes (`#fff`, `#f5f5f7`, `#86868b`) → Tokens; Health-Ring als dokumentiertes Spezial-Pattern |
+| medizinisches-bulletin (8100) | Teal `#0d6e6e` → `--app-accent`; dataviz-Palette + „Farbe nie allein"-Regel in diese Richtlinie übernommen (danke); **keine Media-Query** → Mobile-Pflicht; eigener hub_auth-Cookie-Check darf bleiben (Defense in Depth) |
+
+**Empfohlene Migrationsreihenfolge:** (1) molly — größter UI-Gewinn,
+Jinja+static bereits vorhanden · (2) kfz — Referenz-Migration für die
+Sippe · (3) leistungsabrechnung + sachversicherungen — klären die
+Farbkonventionen · (4) altersvorsorge · (5) finanzen + goldbestand ·
+(6) aufgaben + investor · (7) immobilien · (8) vault-integrity +
+medizinisches-bulletin.
+
+## 12. Changelog
+
+| Version | Datum | Änderung |
+|---|---|---|
+| 1.0 | 20.09.2026 | Erste Fassung (AP210): Kommandozentrale, Shell, Hell+Dunkel, HubTable-Pflicht, Formate, Farbwelt, Migrations-Checkliste |

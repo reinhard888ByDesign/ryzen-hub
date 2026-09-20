@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ svc.name }} — nicht erreichbar · Ryzen Hub</title>
+  <script>try{var t=localStorage.getItem('hub-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+  <link rel="stylesheet" href="/ui/hub-ui.css">
+  <script src="/ui/hub-ui.js" defer></script>
+</head>
+<body class="hub-ui">
+  <div id="hub-shell" data-app="{{ meta_json }}"></div>
+
+  <div class="down-state">
+    <div class="down-state-icon">⚡</div>
+    <div class="down-state-title">{{ svc.icon }} {{ svc.name }} ist nicht erreichbar</div>
+    <div class="down-state-msg">
+      Der Dienst antwortet momentan nicht. Prüfe, ob der Prozess oder
+      Container läuft — die Seite versucht es beim nächsten Klick erneut.
+    </div>
+    {% if svc.last_error %}
+    <div class="down-state-error">{{ svc.last_error }}</div>
+    {% endif %}
+    <a href="{{ request.url.path }}" class="btn btn-primary">↺ Erneut versuchen</a>
+  </div>
+</body>
+</html>
