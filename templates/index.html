@@ -144,7 +144,7 @@
   <div class="section-header">{{ category }}</div>
   <div class="cards">
     {% for svc in services %}
-    <a href="{{ svc.url }}" target="_blank" rel="noopener" class="card {% if not svc.stat_value %}card-no-stat{% endif %}">
+    <a href="/p/{{ svc.id }}/" target="_blank" rel="noopener" class="card {% if not svc.stat_value %}card-no-stat{% endif %}">
       <div class="card-top">
         <div class="card-icon">{{ svc.icon }}</div>
         <div class="card-status-badge {{ 'badge-' + svc.status }}" data-badge="{{ svc.id }}">
@@ -158,7 +158,7 @@
       <div class="card-divider"></div>
       <div class="card-footer">
         <div>
-          <div class="card-stat-num" data-stat="{{ svc.id }}">{{ svc.stat_value }}</div>
+          <div class="card-stat-num{% if svc.stat_value and svc.stat_value|length > 10 %} card-stat-num-long{% endif %}" data-stat="{{ svc.id }}">{{ svc.stat_value }}</div>
           <div class="card-stat-label">{{ svc.db_label or '' }}</div>
         </div>
         <div>

@@ -47,7 +47,7 @@ class Service:
 
 REGISTRY: list[Service] = [
     Service(
-        id="kv", name="Krankenversicherung", url="http://192.168.86.195:8090",
+        id="kv", name="Krankenversicherung", url="http://127.0.0.1:8090",
         category="Dokumente & Abfragen", icon="💊",
         description="Leistungsabrechnungen Gothaer & HUK-Coburg",
         db_path=str(SKILLS / "leistungsabrechnung/kk_leistungen.db"),
@@ -55,7 +55,7 @@ REGISTRY: list[Service] = [
         db_label="Abrechnungen",
     ),
     Service(
-        id="kfz", name="KFZ", url="http://192.168.86.195:8094",
+        id="kfz", name="KFZ", url="http://127.0.0.1:8094",
         category="Dokumente & Abfragen", icon="🚗",
         description="Fahrzeuge, Versicherungen & Schäden",
         db_path=str(SKILLS / "kfz/kfz.db"),
@@ -63,45 +63,54 @@ REGISTRY: list[Service] = [
         db_label="Fahrzeuge",
     ),
     Service(
-        id="immobilien", name="Immobilien", url="http://192.168.86.195:8091",
+        id="immobilien", name="Immobilien", url="http://127.0.0.1:8091",
         category="Dokumente & Abfragen", icon="🏠",
         description="Eigene und vermietete Objekte",
         db_path=str(SKILLS / "immobilien/immobilien.db"),
-        db_query="SELECT COUNT(*) FROM objekte WHERE aktiv_bis IS NULL",
-        db_label="Aktive Objekte",
+        # AP172: objekte.archiv ist seit AP158 das Kriterium. `aktiv_bis` blieb
+        # bei den nachgetragenen Objekten leer und zaehlte die verkauften
+        # Schevemoorer und Brinkum mit.
+        db_query=(
+            "SELECT COUNT(*) || ' aktiv · ' || "
+            "COALESCE((SELECT printf('%+.0f €/M', SUM(cashflow_mtl)) "
+            "          FROM v_immo_rendite "
+            "          WHERE archiviert=0 AND nutzung='vermietet'), '—') "
+            "FROM objekte WHERE archiv = 0"
+        ),
+        db_label="Objekte",
     ),
     Service(
-        id="absender", name="Absender DB", url="http://192.168.86.195:8765",
+        id="absender", name="Absender DB", url="http://127.0.0.1:8765",
         category="Dokumente & Abfragen", icon="📇",
         description="Absender-Konfiguration: Kategorie & Adressat-Zuordnung",
         iframe_path="/absender",
     ),
     Service(
-        id="pipeline", name="Pipeline Live", url="http://192.168.86.195:8765/pipeline",
+        id="pipeline", name="Pipeline Live", url="http://127.0.0.1:8765/pipeline",
         category="Infrastruktur", icon="⚡",
         description="Live-Ansicht: Dokument-Verarbeitung in Echtzeit",
         iframe_path="",
     ),
     Service(
-        id="pipeline-history", name="Pipeline History", url="http://192.168.86.195:8765/pipeline/history",
+        id="pipeline-history", name="Pipeline History", url="http://127.0.0.1:8765/pipeline/history",
         category="Infrastruktur", icon="📋",
         description="Letzte 50 Verarbeitungen: Zeit, Kategorie, Status",
         iframe_path="",
     ),
     Service(
-        id="batch", name="Batch Verarbeitung", url="http://192.168.86.195:8765/batch",
+        id="batch", name="Batch Verarbeitung", url="http://127.0.0.1:8765/batch",
         category="Infrastruktur", icon="🧰",
         description="Batch-Rescan: PDFs neu OCR-scannen & klassifizieren",
         iframe_path="",
     ),
     Service(
-        id="pipeline-debug", name="Pipeline Debugger", url="http://192.168.86.195:8765",
+        id="pipeline-debug", name="Pipeline Debugger", url="http://127.0.0.1:8765",
         category="Infrastruktur", icon="🔬",
         description="PDF-Upload: Pipeline simulieren, Override-Kaskade prüfen",
         iframe_path="/pipeline-debug",
     ),
     Service(
-        id="altersvorsorge", name="Altersvorsorge", url="http://192.168.86.195:8092",
+        id="altersvorsorge", name="Altersvorsorge", url="http://127.0.0.1:8092",
         category="Dokumente & Abfragen", icon="📈",
         description="Standmitteilungen & Rentenverträge",
         db_path=str(SKILLS / "altersvorsorge/altersvorsorge.db"),
@@ -109,7 +118,7 @@ REGISTRY: list[Service] = [
         db_label="Aktive Verträge",
     ),
     Service(
-        id="sachversicherungen", name="Sachversicherungen", url="http://192.168.86.195:8093",
+        id="sachversicherungen", name="Sachversicherungen", url="http://127.0.0.1:8093",
         category="Dokumente & Abfragen", icon="🛡️",
         description="Hausrat, Haftpflicht, Wohngebäude, Rechtsschutz",
         db_path=str(SKILLS / "sachversicherungen/sachversicherungen.db"),
@@ -117,7 +126,7 @@ REGISTRY: list[Service] = [
         db_label="Aktive Verträge",
     ),
     Service(
-        id="finanzanalyse", name="Finanzanalyse", url="http://192.168.86.195:8097",
+        id="finanzanalyse", name="Finanzanalyse", url="http://127.0.0.1:8097",
         category="Dokumente & Abfragen", icon="💰",
         description="Finanzanalyse — Transaktionen aus CSV-Import",
         health_path="/api/summary.json",
@@ -126,7 +135,29 @@ REGISTRY: list[Service] = [
         db_label="Netto-Saldo",
     ),
     Service(
-        id="investor", name="Investor Reporting", url="http://192.168.86.195:8095",
+        id="goldbestand", name="Goldbestand", url="http://127.0.0.1:8098",
+        category="Dokumente & Abfragen", icon="🪙",
+        description="Goldbarren & historische Muenzen — Depotwert zum Tageskurs",
+        health_path="/api/summary.json",
+        db_path=str(SKILLS / "goldbestand/goldbestand.db"),
+        db_query=(
+            "SELECT CAST(ROUND(("
+            "(SELECT COALESCE(SUM(anzahl * gewicht_stueck_g),0) FROM barren WHERE aktiv=1)"
+            " + "
+            "(SELECT COALESCE(SUM(feingoldgehalt_standard_g),0) FROM muenzen WHERE aktiv=1)"
+            ") * (SELECT preis_eur_je_gramm FROM goldpreis_cache ORDER BY id DESC LIMIT 1)"
+            ") AS INTEGER) || ' €'"
+        ),
+        db_label="Materialwert",
+    ),
+    Service(
+        id="medizinisches-bulletin", name="Medizinisches Bulletin", url="http://127.0.0.1:8100",
+        category="Dokumente & Abfragen", icon="🩺",
+        description="Laborwerte & Arztbriefe — Zeitreihen, Chronik, Einschätzung je Person",
+        health_path="/api/status.json",
+    ),
+    Service(
+        id="investor", name="Investor Reporting", url="http://127.0.0.1:8095",
         category="Dokumente & Abfragen", icon="📊",
         description="Investor-Reports: Wonderz, Xempus, Mate — KPIs & Exit-Strategien",
         db_path=str(SKILLS / "investor-reporting/investor.db"),
@@ -134,7 +165,7 @@ REGISTRY: list[Service] = [
         db_label="Reports",
     ),
     Service(
-        id="aufgaben", name="Aufgaben", url="http://192.168.86.195:8096",
+        id="aufgaben", name="Aufgaben", url="http://127.0.0.1:8096",
         category="Haushalt", icon="📋",
         description="Aufgaben-Verwaltung — Anlegen, Bearbeiten, Erledigen",
         db_path="/home/reinhard/aufgaben/aufgaben.db",
@@ -142,48 +173,48 @@ REGISTRY: list[Service] = [
         db_label="Offen",
     ),
     Service(
-        id="molly", name="Molly", url="http://192.168.86.195:8081",
+        id="molly", name="Molly", url="http://127.0.0.1:8081",
         category="Haushalt", icon="🐾",
         description="Medikationsplan — Arthrose & Ohrentzündung, Librela-Tracking",
     ),
     Service(
-        id="wilson-senders", name="Email-Absender", url="http://192.168.86.195:8771",
+        id="wilson-senders", name="Email-Absender", url="http://127.0.0.1:8771",
         category="Dokumente & Abfragen", icon="📧",
         description="Wilson Email-Absenderverwaltung & Kontaktdatenbank",
     ),
     Service(
-        id="dispatcher", name="Dispatcher", url="http://192.168.86.195:8765",
+        id="dispatcher", name="Dispatcher", url="http://127.0.0.1:8765",
         category="Infrastruktur", icon="📨",
         description="Dokument-Dispatcher & Klassifikations-Pipeline",
         health_path="/api/health",
     ),
     Service(
-        id="cache-reader", name="Cache Reader", url="http://192.168.86.195:8501",
+        id="cache-reader", name="Cache Reader", url="http://127.0.0.1:8501",
         category="Infrastruktur", icon="🗄️",
         description="Docling Workflow Cache-Viewer",
         health_path="/health",
     ),
     Service(
-        id="syncthing", name="Syncthing", url="http://192.168.86.195:8384",
+        id="syncthing", name="Syncthing", url="http://127.0.0.1:8384",
         category="Infrastruktur", icon="🔄",
         description="Datei-Synchronisation",
         health_path="/rest/noauth/health",
     ),
     Service(
-        id="docling", name="Docling Serve", url="http://192.168.86.195:5001",
+        id="docling", name="Docling Serve", url="http://127.0.0.1:5001",
         category="Infrastruktur", icon="📄",
         description="PDF-Konvertierungs-API",
         health_path="/health",
         iframe_path="/docs",
     ),
     Service(
-        id="open-webui", name="Open WebUI", url="http://192.168.86.195:3000",
+        id="open-webui", name="Open WebUI", url="http://127.0.0.1:3000",
         category="KI", icon="🤖",
         description="LLM-Chat-Interface (Ollama / Claude)",
         iframe_path="",
     ),
     Service(
-        id="ollama", name="Ollama", url="http://192.168.86.195:11434",
+        id="ollama", name="Ollama", url="http://127.0.0.1:11434",
         category="KI", icon="🧠",
         description="Lokale LLM-Inference (ROCm / AMD)",
         health_path="/api/tags",
@@ -195,7 +226,7 @@ REGISTRY: list[Service] = [
         health_path="/health",
     ),
     Service(
-        id="vault-integrity", name="Vault Integrity", url="http://192.168.86.195:8099",
+        id="vault-integrity", name="Vault Integrity", url="http://127.0.0.1:8099",
         category="Infrastruktur", icon="🔍",
         description="Vault-Integritäts-Check — 6 Phasen: Duplikate, Links, Frontmatter, Kategorien, App-Routing, Inbox",
         health_path="/api/status",
@@ -210,10 +241,33 @@ def by_id(service_id: str) -> Optional[Service]:
     return next((s for s in REGISTRY if s.id == service_id), None)
 
 
+def _sichtbar() -> list:
+    """REGISTRY, beschraenkt auf die Freigaben des angemeldeten Kontos.
+
+    AP08d. Faellt hub_auth aus, wird nichts gefiltert — der Hub bleibt
+    bedienbar. Das ist vertretbar, weil der Zugriffsschutz selbst in
+    der Middleware sitzt und nicht hier: diese Funktion bestimmt nur,
+    was angezeigt wird.
+    """
+    try:
+        import hub_auth
+        erlaubt = hub_auth.erlaubte(hub_auth.AKTUELLER_NUTZER.get())
+    except Exception:
+        return list(REGISTRY)
+    if erlaubt == "*":
+        return list(REGISTRY)
+    return [s for s in REGISTRY if s.id in erlaubt]
+
+
 def grouped() -> dict[str, list[Service]]:
+    sichtbar = _sichtbar()
     result: dict[str, list[Service]] = {}
     for cat in CATEGORY_ORDER:
-        result[cat] = [s for s in REGISTRY if s.category == cat]
+        treffer = [s for s in sichtbar if s.category == cat]
+        # Leere Rubriken weglassen, sonst stehen bei einem Konto mit
+        # einer einzigen Freigabe zehn leere Ueberschriften auf der Seite.
+        if treffer:
+            result[cat] = treffer
     return result
 
 
@@ -305,6 +359,35 @@ async def health_loop():
             await asyncio.sleep(30)
 
 
+def _entschaerfe_header(resp_headers: dict, svc) -> dict:
+    """Interne Adressen aus Antwortkoepfen entfernen (AP08b).
+
+    Betrifft vor allem Location. httpx folgt Weiterleitungen selbst,
+    aber ist die letzte Antwort eine, ginge http://127.0.0.1:<port>
+    unveraendert an den Browser.
+
+    Nimmt den Dienst, nicht seine Kennung: proxy_api und
+    iframe_proxy_middleware ermitteln ihn ueber den Referer und haben
+    kein service_id im Gueltigkeitsbereich. Ein erster Entwurf setzte
+    dort service_id ein — ast.parse fand das nicht, weil undefinierte
+    Namen erst zur Laufzeit auffallen. Zwei der vier Proxy-Stellen
+    waeren mit NameError abgestuerzt.
+    """
+    if not svc:
+        return resp_headers
+    service_id = svc.id
+    basis = svc.url.rstrip("/")
+    port = basis.rsplit(":", 1)[-1]
+    for kopf in ("location", "content-location"):
+        for k in list(resp_headers):
+            if k.lower() == kopf:
+                resp_headers[k] = (resp_headers[k]
+                                   .replace(basis, f"/p/{service_id}")
+                                   .replace(f"http://{RYZEN_IP}:{port}",
+                                            f"/p/{service_id}"))
+    return resp_headers
+
+
 def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
     """Injiziert <base> und fetch/XHR-Patcher in HTML-Antworten,
     damit absolute Pfade im iframe korrekt aufgeloest werden."""
@@ -364,6 +447,21 @@ def _inject_base_tag(html_bytes: bytes, service_id: str) -> bytes:
 }})();
 </script>"""
         html = html.replace('<head>', f'<head>{interceptor}', 1)
+
+        # AP08b: absolute Backend-Adressen auf den Proxy-Pfad umbiegen.
+        # Molly & Co. bauen Links aus request.base_url. Der Hub entfernt
+        # den Host-Kopf, httpx setzt daraufhin 127.0.0.1:<port> - und
+        # genau das landet im HTML. Der Skript-Einschub oben fasst
+        # absolute URLs nicht an, er kann es also nicht auffangen.
+        svc = by_id(service_id)
+        if svc:
+            basis = svc.url.rstrip('/')
+            html = html.replace(basis, f'/p/{service_id}')
+            # Der Altbestand kann noch die LAN-Adresse enthalten. Die war
+            # vom Browser aus erreichbar - der Klick landete am Hub vorbei
+            # direkt auf dem Dashboard und umginge seit AP08 die Anmeldung.
+            port = basis.rsplit(':', 1)[-1]
+            html = html.replace(f'http://{RYZEN_IP}:{port}', f'/p/{service_id}')
         return html.encode('utf-8')
     except Exception:
         return html_bytes
@@ -404,6 +502,7 @@ async def proxy_to_service(request: Request, service_id: str, path: str):
     # Response headers to forward (strip hop-by-hop)
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+    resp_headers = _entschaerfe_header(resp_headers, svc)
 
     content_type = r.headers.get("content-type", "")
     if "text/html" in content_type:
@@ -442,6 +541,7 @@ async def proxy_root(request: Request, service_id: str):
 
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+    resp_headers = _entschaerfe_header(resp_headers, svc)
 
     content_type = r.headers.get("content-type", "")
     if "text/html" in content_type:
@@ -500,6 +600,7 @@ async def proxy_api(request: Request, path: str):
 
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+    resp_headers = _entschaerfe_header(resp_headers, svc)
 
     return StreamingResponse(
         r.aiter_bytes(),
@@ -550,7 +651,7 @@ async def api_status():
             "last_error": svc.last_error,
             "stat_value": svc.stat_value,
         }
-        for svc in REGISTRY
+        for svc in _sichtbar()   # AP08d
     }
 
 
@@ -633,6 +734,7 @@ async def iframe_proxy_middleware(request: Request, call_next):
 
     resp_headers = {k: v for k, v in r.headers.items()
                     if k.lower() not in ("transfer-encoding", "content-length", "content-encoding")}
+    resp_headers = _entschaerfe_header(resp_headers, svc)
     content_type = r.headers.get("content-type", "")
 
     if "text/html" in content_type:
@@ -642,3 +744,14 @@ async def iframe_proxy_middleware(request: Request, call_next):
                            status_code=r.status_code, headers=resp_headers)
     return StreamingResponse(
         r.aiter_bytes(), status_code=r.status_code, headers=resp_headers, media_type=content_type)
+
+# ── AP08: Anmeldung ───────────────────────────────────────────────────
+# Bewusst am Dateiende. Starlette macht die zuletzt registrierte
+# Middleware zur aeussersten. Die iframe_proxy_middleware oben reicht
+# bei passendem Referer direkt an ein Dashboard weiter, ohne call_next
+# aufzurufen — laege die Anmeldung darunter, genuegte ein gefaelschter
+# Referer, um sie zu umgehen.
+import sys as _sys
+_sys.path.insert(0, "/home/reinhard/dms-ap")
+import hub_auth as _hub_auth
+_hub_auth.installiere(app)

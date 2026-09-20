@@ -14,6 +14,8 @@ Zentrales Dashboard-Portal für alle lokalen Services auf dem Ryzen.
 | 8091 | Immobilien | Dokumente & Abfragen |
 | 8092 | Altersvorsorge | Dokumente & Abfragen |
 | 8093 | Sachversicherungen | Dokumente & Abfragen |
+| 8098 | Goldbestand | Dokumente & Abfragen |
+| 8100 | Medizinisches Bulletin | Dokumente & Abfragen |
 | 8081 | Molly (Medikamente) | Haushalt |
 | 8765 | Dispatcher | Infrastruktur |
 | 8501 | Cache Reader | Infrastruktur |

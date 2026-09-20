@@ -1,4 +1,4 @@
-__pycache__/
-*.pyc
-.enzyme/
-.enzyme-embeddings/
+# Sicherungs- und Laufzeitdateien (AP202)
+*.bak-*
+nohup.out
+test_vault.txt
