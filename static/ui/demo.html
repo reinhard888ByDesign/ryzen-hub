@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HubTable — Demo · Ryzen Hub</title>
+  <script>try{var t=localStorage.getItem('hub-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+  <link rel="stylesheet" href="/ui/hub-ui.css">
+  <script src="/ui/hub-ui.js" defer></script>
+</head>
+<body class="hub-ui">
+  <div class="main" style="margin-left:0;">
+    <div class="content" style="max-width:960px; margin:0 auto;">
+      <div class="topbar" style="padding-left:0;">
+        <div class="topbar-title">HubTable — Demo</div>
+        <div class="topbar-meta">Sortierung je Spalte + Filter (AP210)</div>
+      </div>
+      <div class="alerts" style="padding-left:0;">
+        <div class="alert alert-ok">
+          Klick auf einen Spaltenkopf sortiert auf/ab · das Suchfeld filtert
+          zeilenweise · dieses Muster ist Pflicht für jede SQL-Liste
+          (siehe UI-RICHTLINIE.md, Abschnitt 7).
+        </div>
+      </div>
+      <div class="hub-table-wrap">
+        <table class="hub-table" data-sort data-filter="Suchen…">
+          <thead>
+            <tr>
+              <th data-sort data-sort-erste="1">Datum</th>
+              <th data-sort data-sort-typ="text">Leistungserbringer</th>
+              <th data-sort data-sort-typ="euro" class="num">Betrag</th>
+              <th data-sort data-sort-typ="datum">Belegdatum</th>
+              <th data-sort data-sort-typ="text">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>01.03.2026</td><td>Dr. Berger, Karlsruhe</td><td class="num">245,60 €</td><td>28.02.2026</td><td>Erstattet</td></tr>
+            <tr><td>04.03.2026</td><td>Apotheke am Markt</td><td class="num">12,45 €</td><td>03.03.2026</td><td>Erstattet</td></tr>
+            <tr><td>12.03.2026</td><td>Zahnarztpraxis Moll</td><td class="num">1.234,00 €</td><td>10.03.2026</td><td>In Prüfung</td></tr>
+            <tr><td>18.03.2026</td><td>Radiologie Südstadt</td><td class="num">89,90 €</td><td>17.03.2026</td><td>Offen</td></tr>
+            <tr><td>02.04.2026</td><td>Dr. Berger, Karlsruhe</td><td class="num num-neg">-42,50 €</td><td>01.04.2026</td><td>Korrektur</td></tr>
+            <tr><td>15.04.2026</td><td>Orthopädie Mitte</td><td class="num">312,10 €</td><td>14.04.2026</td><td>Erstattet</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:12px;color:var(--text-3);margin-top:16px;">
+        Sortier-Typen: <code>text</code> · <code>euro</code> (deutsches
+        Format) · <code>datum</code> (DD.MM.YYYY) — leere Zellen sortieren
+        ans Ende, null Treffer zeigen den Leerzustand mit Reset.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

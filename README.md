@@ -70,6 +70,8 @@ den Apps; die Seitenleiste führt nur System-Einträge.
   dreistufigem Umschalter (Auto/Hell/Dunkel).
 - **Gemeinsame Assets:** `/ui/hub-ui.css` + `/ui/hub-ui.js`
   (Design-Tokens, Shell, HubTable: sortier- und filterbare Tabellen).
+- **HubTable live ansehen:** `/ui/demo.html` — sortier- und
+  filterbare Beispieltabelle.
 - **Verbindliche Regeln für alle Apps:** `UI-RICHTLINIE.md` —
   Design-Tokens, Komponenten, Formate (EUR immer mit 1000er-Punkt
   und zwei Nachkommastellen), Status-Semantik, Migrations-Checkliste.

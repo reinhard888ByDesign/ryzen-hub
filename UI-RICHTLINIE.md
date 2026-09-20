@@ -191,7 +191,8 @@ Regeln:
   Leerzustand mit „Filter zurücksetzen".
 - Zahlen rechtsbündig mit `.num`, negativ zusätzlich `.num-neg`.
 - Summenzeile: `<tr class="foot-row">` in einem zweiten `<tbody>`.
-- Sortierung/Filter laufen clientseitig über die gerenderte Tabelle —
+- Demo zum Ausprobieren: `/ui/demo.html`. Sortierung/Filter laufen
+  clientseitig über die gerenderte Tabelle —
   ausreichend für die Größenordnungen aller Dashboards. Für sehr
   große Datenmengen (als dokumentierte Ausnahme): Server-Sortierung
   mit Query-Parametern `?sort=<spalte>&richtung=auf|ab&f=<text>`.
