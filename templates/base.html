@@ -143,6 +143,18 @@
     .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
     .nav-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+    /* ── Sidebar-Fußzeile (AP202) ─────────────────────────── */
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border-light);
+    }
+    .sidebar-user {
+      font-size: 12px;
+      color: var(--text-2);
+      padding: 2px 8px 8px;
+    }
+
     /* Status dots */
     .nav-dot, .status-dot {
       width: 7px; height: 7px;
@@ -619,6 +631,22 @@
       {% endfor %}
     </div>
     {% endfor %}
+
+    <!-- Verwaltung: nur für Admins sichtbar (AP202) -->
+    {% if ist_admin %}
+    <div class="nav-section">
+      <a href="/verwaltung" class="nav-item {% if active == 'verwaltung' %}active{% endif %}">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-name">Verwaltung</span>
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- Aktuelles Konto + Abmelden (AP202) -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user">{{ nutzer }}{% if ist_admin %} · Admin{% endif %}</div>
+      <a href="/logout" class="nav-item">↩ Abmelden</a>
+    </div>
   </nav>
 
   <!-- ── Main ────────────────────────────────────────────── -->

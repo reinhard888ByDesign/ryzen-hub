@@ -2,3 +2,6 @@
 *.bak-*
 nohup.out
 test_vault.txt
+__pycache__/
+.enzyme/
+.enzyme-embeddings/

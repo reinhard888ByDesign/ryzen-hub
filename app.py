@@ -7,11 +7,20 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               RedirectResponse, StreamingResponse)
 from fastapi.templating import Jinja2Templates
 from urllib.parse import urljoin
 import re
+
+# hub_auth liegt in dms-ap (AP08). Der Import stand frueher am Dateiende,
+# weil installiere() die letzte Middleware registrieren muss — der Import
+# selbst kann aber hier oben stehen. Nur hub_auth.installiere(app) bleibt
+# am Ende (AP202).
+import sys
+sys.path.insert(0, "/home/reinhard/dms-ap")
+import hub_auth
 
 SKILLS = Path("/home/reinhard/.claude/skills")
 RYZEN_IP = "192.168.86.195"
@@ -269,6 +278,18 @@ def grouped() -> dict[str, list[Service]]:
         if treffer:
             result[cat] = treffer
     return result
+
+
+def _basis_kontext(request: Request, active):
+    """Gemeinsamer Template-Kontext aller Hub-Seiten (AP202).
+
+    groups + active braucht jede Seite, die base.html erbt (Sidebar).
+    nutzer/ist_admin sind in Jinja falsy, wenn sie fehlen — Seiten
+    bleiben also auch ohne diese Variablen bedienbar.
+    """
+    nutzer = getattr(request.state, "nutzer", None)
+    return {"groups": grouped(), "active": active,
+            "nutzer": nutzer or "", "ist_admin": hub_auth.ist_admin(nutzer)}
 
 
 def load_db_stat(svc: Service) -> Optional[str]:
@@ -612,17 +633,21 @@ async def proxy_api(request: Request, path: str):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    down = [s for s in REGISTRY if s.status == "down"]
+    # AP202: Health-Bar und Down-Banner bekommen die GEFILTERTE Liste.
+    # Vorher stand hier REGISTRY — ein Konto mit einer einzigen Freigabe
+    # sah damit trotzdem alle Dienstnamen und Zustandswerte.
+    sichtbar = _sichtbar()
+    down = [s for s in sichtbar if s.status == "down"]
     mobile = is_mobile_device(request.headers.get("user-agent", ""))
-    return templates.TemplateResponse(request, "index.html", {
-        "registry": REGISTRY,
-        "groups": grouped(),
-        "active": None,
+    ctx = _basis_kontext(request, None)
+    ctx.update({
+        "registry": sichtbar,
         "down_services": down,
-        "total": len(REGISTRY),
-        "up_count": sum(1 for s in REGISTRY if s.status == "up"),
+        "total": len(sichtbar),
+        "up_count": sum(1 for s in sichtbar if s.status == "up"),
         "is_mobile": mobile,
     })
+    return templates.TemplateResponse(request, "index.html", ctx)
 
 
 @app.get("/service/{service_id}", response_class=HTMLResponse)
@@ -632,13 +657,13 @@ async def service_detail(request: Request, service_id: str):
         return HTMLResponse("Service not found", status_code=404)
     mobile = is_mobile_device(request.headers.get("user-agent", ""))
     iframe_url = f"/p/{service_id}/{svc.iframe_path.lstrip('/')}"
-    return templates.TemplateResponse(request, "service.html", {
+    ctx = _basis_kontext(request, service_id)
+    ctx.update({
         "svc": svc,
-        "groups": grouped(),
-        "active": service_id,
         "iframe_url": iframe_url,
         "is_mobile": mobile,
     })
+    return templates.TemplateResponse(request, "service.html", ctx)
 
 
 @app.get("/api/status")
@@ -653,6 +678,186 @@ async def api_status():
         }
         for svc in _sichtbar()   # AP08d
     }
+
+
+# ── Verwaltung (AP202) ────────────────────────────────────────────────
+# Benutzerverwaltung mit App-Freigaben. Nur fuer Admin-Konten — alle
+# anderen bekommen 404 (wer keinen Zugriff hat, soll nicht erfahren,
+# dass es die Seite gibt, wie bei den Diensten auch). Die Freigaben
+# selbst erzwingt die _anmeldung-Middleware aus hub_auth; hier werden
+# sie nur gesetzt.
+#
+# Schreibsequenz und Event-Loop: zwischen den Vorpruefungen und dem
+# Schreiben liegt kein await — die Sequenz laeuft am Stueck, keine
+# andere Anfrage kommt dazwischen. Deshalb ist kein Datei-Lock noetig.
+# scrypt blockiert dabei ~0,1 s; bei wenigen Konten vertretbar (das
+# Login macht es genauso). run_in_executor wuerde das Race-Fenster
+# wieder aufreissen.
+
+MELDUNGEN = {
+    "angelegt": ("ok", "Konto angelegt."),
+    "gespeichert": ("ok", "Konto gespeichert."),
+    "geloescht": ("ok", "Konto gelöscht."),
+    "passwort_kurz": ("fehler", "Passwort: mindestens 8 Zeichen."),
+    "name_ungueltig": ("fehler", "Ungültiger Nutzername (leer oder '|')."),
+    "name_vergeben": ("fehler", "Dieser Name ist bereits vergeben."),
+    "dienst_unbekannt": ("fehler", "Unbekannte Dienst-Kennung — "
+                                  "nichts gespeichert."),
+    "letzter_admin": ("fehler", "Der letzte Admin kann nicht entfernt "
+                                "werden."),
+    "letzter_nutzer": ("fehler", "Der letzte Nutzer kann nicht gelöscht "
+                                 "werden."),
+    "unbekannt": ("fehler", "Unbekannter Nutzer."),
+}
+
+
+async def _nur_admin(request: Request):
+    """404 fuer alle, die kein Admin sind — konsistent zum
+    'Dienst nicht verraten'-Prinzip (AP08)."""
+    nutzer = getattr(request.state, "nutzer", None)
+    if not nutzer or not hub_auth.ist_admin(nutzer):
+        raise HTTPException(status_code=404)
+
+
+def _dienste_je_kategorie() -> dict[str, list[Service]]:
+    """REGISTRY nach Kategorien gruppiert, CATEGORY_ORDER zuerst."""
+    ergebnis: dict[str, list[Service]] = {}
+    for svc in REGISTRY:
+        ergebnis.setdefault(svc.category, []).append(svc)
+    geordnet = {c: ergebnis.pop(c) for c in CATEGORY_ORDER if c in ergebnis}
+    geordnet.update(ergebnis)
+    return geordnet
+
+
+def _pruefe_eingaben(nutzer: str, passwort: str | None, alle: bool,
+                     dienste: list[str]) -> str | None:
+    """Gemeinsame Vorpruefungen von anlegen/bearbeiten.
+
+    Gibt einen MELDUNGEN-Schluessel zurueck oder None, wenn alles passt.
+    passwort=None heisst beim Bearbeiten: unveraendert, nicht pruefen.
+    """
+    if not nutzer or "|" in nutzer or len(nutzer) > 64:
+        return "name_ungueltig"
+    if passwort is not None and len(passwort) < 8:
+        return "passwort_kurz"
+    if not alle:
+        for sid in dienste:
+            if not by_id(sid):
+                return "dienst_unbekannt"
+    return None
+
+
+@app.get("/verwaltung", dependencies=[Depends(_nur_admin)],
+         response_class=HTMLResponse)
+async def verwaltung(request: Request,
+                     bearbeiten: str = "",
+                     msg: str = "",
+                     fehler: str = ""):
+    konten = hub_auth.konten()
+    ziel = konten.get(bearbeiten)
+    meldung = MELDUNGEN.get(msg or fehler)
+    ctx = _basis_kontext(request, "verwaltung")
+    ctx.update({
+        "konten": konten,
+        "dienste_je_kategorie": _dienste_je_kategorie(),
+        "ziel_name": bearbeiten if ziel else "",
+        "ziel_admin": ziel["admin"] if ziel else False,
+        "ausgewaehlte": (ziel["dienste"] if ziel and isinstance(
+            ziel["dienste"], list) else []),
+        "ist_alle": ziel is not None and ziel["dienste"] == "*",
+        "meldung": meldung,
+    })
+    return templates.TemplateResponse(request, "verwaltung.html", ctx)
+
+
+@app.post("/verwaltung/anlegen", dependencies=[Depends(_nur_admin)])
+async def verwaltung_anlegen(request: Request,
+                             nutzer: str = Form(""),
+                             passwort: str = Form(""),
+                             admin: str = Form(""),
+                             alle: str = Form(""),
+                             dienste: list[str] = Form(default=[])):
+    nutzer = nutzer.strip()
+    fehler = _pruefe_eingaben(nutzer, passwort, bool(alle), dienste)
+    if fehler:
+        return RedirectResponse(f"/verwaltung?fehler={fehler}",
+                                status_code=303)
+    if nutzer in hub_auth.konten():
+        return RedirectResponse("/verwaltung?fehler=name_vergeben",
+                                status_code=303)
+    try:
+        hub_auth.setze_passwort(passwort, nutzer,
+                                dienste=("*" if alle else dienste))
+        if admin:
+            hub_auth.setze_admin(nutzer, True)
+    except ValueError:
+        return RedirectResponse("/verwaltung?fehler=unbekannt",
+                                status_code=303)
+    return RedirectResponse(f"/verwaltung?msg=angelegt&bearbeiten={nutzer}",
+                            status_code=303)
+
+
+@app.post("/verwaltung/bearbeiten", dependencies=[Depends(_nur_admin)])
+async def verwaltung_bearbeiten(request: Request,
+                                nutzer_alt: str = Form(""),
+                                nutzer: str = Form(""),
+                                passwort: str = Form(""),
+                                admin: str = Form(""),
+                                alle: str = Form(""),
+                                dienste: list[str] = Form(default=[])):
+    konten = hub_auth.konten()
+    if nutzer_alt not in konten:
+        return RedirectResponse("/verwaltung?fehler=unbekannt",
+                                status_code=303)
+    nutzer = nutzer.strip()
+    # Alle Vorpruefungen VOR dem ersten Schreiben — sonst bleibt bei
+    # einem Fehler ein halb geaendertes Konto zurueck.
+    fehler = _pruefe_eingaben(nutzer, passwort or None, bool(alle), dienste)
+    if fehler:
+        return RedirectResponse(f"/verwaltung?fehler={fehler}",
+                                status_code=303)
+    if nutzer != nutzer_alt and nutzer in konten:
+        return RedirectResponse("/verwaltung?fehler=name_vergeben",
+                                status_code=303)
+    admins = [n for n, k in konten.items() if k["admin"]]
+    if not admin and nutzer_alt in admins and len(admins) == 1:
+        return RedirectResponse("/verwaltung?fehler=letzter_admin",
+                                status_code=303)
+    try:
+        if nutzer != nutzer_alt:
+            hub_auth.benenne_um(nutzer_alt, nutzer)
+        if passwort:
+            hub_auth.setze_passwort(passwort, nutzer)
+        hub_auth.setze_admin(nutzer, bool(admin))
+        hub_auth.setze_dienste(nutzer, "*" if alle else dienste)
+    except ValueError:
+        return RedirectResponse("/verwaltung?fehler=unbekannt",
+                                status_code=303)
+    return RedirectResponse(f"/verwaltung?msg=gespeichert&bearbeiten={nutzer}",
+                            status_code=303)
+
+
+@app.post("/verwaltung/loeschen", dependencies=[Depends(_nur_admin)])
+async def verwaltung_loeschen(request: Request, nutzer: str = Form("")):
+    # Vorpruefungen spiegeln die Schutzregeln aus hub_auth — hub_auth
+    # bleibt die Instanz, die die Datei schreibt, und wacht noch einmal.
+    konten = hub_auth.konten()
+    if nutzer not in konten:
+        return RedirectResponse("/verwaltung?fehler=unbekannt",
+                                status_code=303)
+    admins = [n for n, k in konten.items() if k["admin"]]
+    if konten[nutzer]["admin"] and len(admins) == 1:
+        return RedirectResponse("/verwaltung?fehler=letzter_admin",
+                                status_code=303)
+    if len(konten) == 1:
+        return RedirectResponse("/verwaltung?fehler=letzter_nutzer",
+                                status_code=303)
+    try:
+        hub_auth.loesche_nutzer(nutzer)
+    except ValueError:
+        return RedirectResponse("/verwaltung?fehler=unbekannt",
+                                status_code=303)
+    return RedirectResponse("/verwaltung?msg=geloescht", status_code=303)
 
 
 # ── Vault-Dateizugriff ─────────────────────────────────────────────────────────
@@ -700,8 +905,13 @@ async def iframe_proxy_middleware(request: Request, call_next):
     """Proxy für iframe-Requests: Referer→Service-Mapping."""
     path = request.url.path
 
-    # Hub-eigene Pfade nicht proxieren
-    if path.startswith("/p/") or path.startswith("/service/") or path == "/api/status" or path.startswith("/vault-file") or path.startswith("/pdf/"):
+    # Hub-eigene Pfade nicht proxieren. /verwaltung gehoert seit AP202
+    # dazu: mit einem gefaelschten Referer /p/<id>/ wuerden sonst
+    # Verwaltungs-POSTs an ein Dashboard weitergereicht statt an die
+    # Hub-Routen (und deren Admin-Gate).
+    if (path.startswith("/p/") or path.startswith("/service/")
+            or path == "/api/status" or path.startswith("/vault-file")
+            or path.startswith("/pdf/") or path.startswith("/verwaltung")):
         return await call_next(request)
 
     referer = request.headers.get("referer", "")
@@ -751,7 +961,7 @@ async def iframe_proxy_middleware(request: Request, call_next):
 # bei passendem Referer direkt an ein Dashboard weiter, ohne call_next
 # aufzurufen — laege die Anmeldung darunter, genuegte ein gefaelschter
 # Referer, um sie zu umgehen.
-import sys as _sys
-_sys.path.insert(0, "/home/reinhard/dms-ap")
-import hub_auth as _hub_auth
-_hub_auth.installiere(app)
+#
+# Der Import selbst steht seit AP202 am Dateianfang; hier bleibt nur
+# noch der installiere()-Aufruf.
+hub_auth.installiere(app)
