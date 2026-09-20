@@ -99,9 +99,12 @@ Auszug (vollständige Liste = Datei selbst, Abschnitt 1–2):
 ### Dunkles Schema
 
 Dieselben Tokens, andere Werte: `--bg #161618`, `--card #1f1f21`,
-Text `#f5f5f7`/`#a1a1a6`/`#6e6e73`, Akzent `#0a84ff`, Status
-`#30d158`/`#ff9f0a`/`#ff453a`/`#98989d`, Rahmen weiß-transparent.
-`color-scheme` wird je Schema gesetzt (native Controls, Scrollbars).
+**Text IMMER weiß** (`--text-1/-2/-3 = #ffffff` — Vorgabe: im
+Dunkelmodus ist kein grauer Text erlaubt; Abstufung läuft über
+Schriftgröße und -gewicht, nicht über Grautöne), Akzent `#0a84ff`,
+Status `#30d158`/`#ff9f0a`/`#ff453a`/`#98989d`, Rahmen
+weiß-transparent. `color-scheme` wird je Schema gesetzt (native
+Controls, Scrollbars).
 
 ### Skalen
 

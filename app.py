@@ -98,17 +98,19 @@ REGISTRY: list[Service] = [
         category="Dokumente & Abfragen", icon="🏠",
         description="Eigene und vermietete Objekte",
         db_path=str(SKILLS / "immobilien/immobilien.db"),
-        # AP172: objekte.archiv ist seit AP158 das Kriterium. `aktiv_bis` blieb
-        # bei den nachgetragenen Objekten leer und zaehlte die verkauften
-        # Schevemoorer und Brinkum mit.
+        # Einnahmen − Kosten p.a. ueber alle aktiven Objekte (AP210) —
+        # dieselben Kennzahlen wie die Kennzahlen-Ansicht der App:
+        # einnahmen_pa (Kaltmiete + NK + Stellplatz, vermietete Objekte)
+        # minus kosten_pa (alle aktiven Objekte).
         db_query=(
-            "SELECT COUNT(*) || ' aktiv · ' || "
-            "COALESCE((SELECT printf('%+.0f €/M', SUM(cashflow_mtl)) "
-            "          FROM v_immo_rendite "
-            "          WHERE archiviert=0 AND nutzung='vermietet'), '—') "
-            "FROM objekte WHERE archiv = 0"
+            "SELECT ROUND("
+            "COALESCE((SELECT SUM(einnahmen_pa) FROM v_immo_rendite "
+            "          WHERE archiviert=0 AND nutzung='vermietet'), 0) "
+            "- COALESCE((SELECT SUM(kosten_pa) FROM v_immo_rendite "
+            "          WHERE archiviert=0), 0), 2) || ' €/J'"
         ),
-        db_label="Objekte",
+        db_label="Einnahmen − Kosten p.a.",
+        db_format="euro",
     ),
     Service(
         id="absender", name="Absender DB", url="http://127.0.0.1:8765",
@@ -165,8 +167,20 @@ REGISTRY: list[Service] = [
         description="Finanzanalyse — Transaktionen aus CSV-Import",
         health_path="/api/summary.json",
         db_path="/home/reinhard/finanzen/finanzen.db",
-        db_query="SELECT CAST(ROUND(SUM(CASE WHEN betrag_eur>0 THEN betrag_eur ELSE 0 END) - SUM(CASE WHEN betrag_eur<0 THEN ABS(betrag_eur) ELSE 0 END)) AS INTEGER) || ' €' FROM transaktionen WHERE umbuchung=0",
-        db_label="Netto-Saldo",
+        # Vermoegen = Summe der letzten Kontostaende je Konto (wie die
+        # Summary-Card der App; Window-Function statt korrelierter
+        # Subquery: 0,01 s statt Sekunden)
+        db_query=(
+            "SELECT ROUND(COALESCE(("
+            "  SELECT SUM(kontostand_eur) FROM ("
+            "    SELECT name_referenzkonto, kontostand_eur,"
+            "           ROW_NUMBER() OVER (PARTITION BY name_referenzkonto"
+            "                              ORDER BY buchungstag DESC) AS rn"
+            "    FROM transaktionen WHERE kontostand_eur IS NOT NULL"
+            "  ) WHERE rn = 1"
+            "), 0), 2) || ' €'"
+        ),
+        db_label="Vermögen",
         widget="breit",
         db_format="euro",
         warm=True,   # Seite wird alle 5 Min neu generiert — Cache warmhalten
@@ -411,7 +425,9 @@ def _formatiere_stat(stat: str | None, db_format: str) -> Optional[str]:
         wert = _zahle(stat)
         if wert is None:
             return stat
-        return _de_euro(wert)
+        # p.a.-Kennzahlen tragen ihr "/J" weiter (z.B. Immobilien)
+        suffix = "/J" if "/J" in stat.upper() else ""
+        return _de_euro(wert) + suffix
 
     def tausender(m):
         tok = m.group(0)

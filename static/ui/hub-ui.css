@@ -77,9 +77,9 @@
     --bg:             #161618;
     --card:           #1f1f21;
     --sidebar-bg:     rgba(22,22,24,0.82);
-    --text-1:         #f5f5f7;
-    --text-2:         #a1a1a6;
-    --text-3:         #6e6e73;
+    --text-1:         #ffffff;
+    --text-2:         #ffffff;
+    --text-3:         #ffffff;
     --accent:         #0a84ff;
     --accent-hover:   #409cff;
     --accent-soft:    rgba(10,132,255,0.18);
@@ -103,8 +103,8 @@
     --shadow-md:      0 4px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35);
     --shadow-lift:    0 8px 30px rgba(0,0,0,0.55), 0 3px 8px rgba(0,0,0,0.35);
     --hub-bg:     #1f1f21;
-    --hub-text:   #f5f5f7;
-    --hub-text-2: #a1a1a6;
+    --hub-text:   #ffffff;
+    --hub-text-2: #ffffff;
     --hub-border: rgba(255,255,255,0.10);
     --hub-hover:  rgba(255,255,255,0.07);
     --hub-accent: #0a84ff;
