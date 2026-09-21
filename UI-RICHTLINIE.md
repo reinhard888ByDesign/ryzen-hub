@@ -79,6 +79,12 @@ Erläuterungen:
 und nutzt im Inhalt nur `var(--app-accent)`. Kern-Tokens dürfen nicht
 überschrieben werden.
 
+**App-eigenes CSS relativ referenzieren** (`static/app.css`): so lädt es
+über das Hub-`<base>` im Proxy **und** direkt auf dem App-Port. Ein
+root-relativer Pfad (`/static/…`) geht über den Proxy ins Leere (Lehre
+AP220: Molly lief bis dahin ohne eigenes CSS). Die App mountet
+`/static` auf ihr eigenes Verzeichnis und `/ui` auf das ryzen-hub-`static/ui`-Verzeichnis.
+
 ## 4. Design-Tokens
 
 Alle Farben, Abstände, Radien und Schatten kommen aus `hub-ui.css`.
@@ -236,10 +242,13 @@ Klick aufs Overlay und Abbrechen-Button. Bestätigen heißt
 „Löschen"/„Speichern", nie „OK".
 
 ### Tabs
-**Eine** Referenz-Implementierung (Pill-Tabbar aus der KV-App):
-Inline-Links, aktiver Tab = Akzent-Hintergrund + weiße Schrift,
-Radius nur außen. Die vier bisherigen Varianten (Helfer-Funktion,
-kopierte Links, Client-JS) werden bei der Migration vereinheitlicht.
+**Eine** Referenz-Implementierung, seit AP221 als Komponente
+`.tabbar` in `hub-ui.css` (Pill-Links nach dem KV-Vorbild):
+Inline-Links (`<a>`), aktiver Tab = Klasse `.aktiv`
+(Akzent-Hintergrund + weiße Schrift), Radius nur außen, mobil
+44-px-Tap-Ziele und Umbruch. Die bisherigen Varianten (Helfer-Funktion,
+kopierte Links, Client-JS) werden bei der Migration auf `.tabbar`
+vereinheitlicht — kfz nutzt sie seit AP221 als erste App.
 
 ### Sparkline / Chart
 Das **einzige** Chart-Muster: SVG-Polyline.
@@ -301,6 +310,12 @@ Beispiele: `format_euro(1234)` → `"1.234,00 €"`,
 Weitere Akzente sind nicht vorgesehen; neue Apps ordnen sich einer
 bestehenden Farbe zu.
 
+**Domänen-Badges:** Länder-Badges (DE/IT in kfz und
+sachversicherungen) folgen dem Status-Badge-Muster (Soft-Hintergrund +
+Textfarbe + Label). Konvention, festgelegt AP221: **DE = Blau**
+(`--accent-soft`/`--accent`), **IT = Orange**
+(`--amber-soft`/`--warn-text`).
+
 ## 9. Theme (hell/dunkel)
 
 - **Automatik** (`prefers-color-scheme`) ist der Standard; der
@@ -343,8 +358,8 @@ Einzelbefunde (aus der UI-Inventur 09/2026):
 |---|---|
 | molly (8081) | ✅ **migriert (AP220, 21.09.2026)** — Shell statt Sidebar, Tokens + Teal-`--app-accent`, HubTable für Erledigte Tage + Librela-Historie, Mobile-Queries, Soll=0-Fix, relative Asset-Pfade |
 | leistungsabrechnung (8090) | **Marion-Farbe** `#c7254e` vs. altersvorsorge grün → einheitliche Personenfarben festlegen; nacktes `.2f` → `format_euro()`; Tabbar vereinheitlichen |
-| kfz (8094) | **DE/IT-Badges vertauscht** vs. sachversicherungen (DE=orange/IT=blau vs. DE=blau/IT=orange) → eine Konvention; US-Formate → deutsch; dunkle PDF-Viewer-Seite (`#333`) → Tokens; größte Listen → HubTable zuerst |
-| sachversicherungen (8093) | Badge-Konflikt s. kfz; US-Formate → deutsch |
+| kfz (8094) | ✅ **migriert (AP221, 21.09.2026)** — alle 11 SQL-Tabellen → HubTable, `format_euro()` + DD.MM.YYYY, DE/IT-Badges auf Konvention (DE=blau/IT=orange), `.tabbar`-Referenz, PDF-Viewer → Tokens, `/health`, Mobile-Queries |
+| sachversicherungen (8093) | Badge-Konvention DE=blau/IT=orange ist bereits vorhanden (durch AP221 festgeschrieben — keine Änderung nötig); US-Formate → deutsch |
 | altersvorsorge (8092) | Sparkline-Muster ist die Referenz (dokumentiert); `1,234.56` → deutsch; Marion grün (Konflikt s. leistungsabrechnung) |
 | aufgaben (8096) | Modal/Bulk-Aktionen als Dialog-Referenz dokumentieren; `--muted:#888` → Tokens; Tabellen → HubTable |
 | finanzen (8097) | CSS-Div-Balken → SVG-Sparkline-Muster; Netto-Saldo → `format_euro()`; leere `chart-card img`-Reste entfernen |
@@ -354,9 +369,8 @@ Einzelbefunde (aus der UI-Inventur 09/2026):
 | vault-integrity (8099) | Externe CSS-Architektur ist das Vorbild (behalten); Hartcodes (`#fff`, `#f5f5f7`, `#86868b`) → Tokens; Health-Ring als dokumentiertes Spezial-Pattern |
 | medizinisches-bulletin (8100) | Teal `#0d6e6e` → `--app-accent`; dataviz-Palette + „Farbe nie allein"-Regel in diese Richtlinie übernommen (danke); **keine Media-Query** → Mobile-Pflicht; eigener hub_auth-Cookie-Check darf bleiben (Defense in Depth) |
 
-**Empfohlene Migrationsreihenfolge:** ~~(1) molly~~ ✅ AP220 · (2) kfz —
-Referenz-Migration für die
-Sippe · (3) leistungsabrechnung + sachversicherungen — klären die
+**Empfohlene Migrationsreihenfolge:** ~~(1) molly~~ ✅ AP220 · ~~(2) kfz~~ ✅ AP221 ·
+(3) leistungsabrechnung + sachversicherungen — klären die
 Farbkonventionen · (4) altersvorsorge · (5) finanzen + goldbestand ·
 (6) aufgaben + investor · (7) immobilien · (8) vault-integrity +
 medizinisches-bulletin.
@@ -366,3 +380,4 @@ medizinisches-bulletin.
 | Version | Datum | Änderung |
 |---|---|---|
 | 1.0 | 20.09.2026 | Erste Fassung (AP210): Kommandozentrale, Shell, Hell+Dunkel, HubTable-Pflicht, Formate, Farbwelt, Migrations-Checkliste |
+| 1.1 | 21.09.2026 | AP221: `.tabbar`-Referenzkomponente, DE/IT-Badge-Konvention (DE=blau/IT=orange), relative App-CSS-Pfade festgeschrieben; kfz (8094) migriert |

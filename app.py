@@ -92,6 +92,7 @@ REGISTRY: list[Service] = [
         db_path=str(SKILLS / "kfz/kfz.db"),
         db_query="SELECT COUNT(*) FROM fahrzeuge WHERE aktiv=1",
         db_label="Fahrzeuge",
+        health_path="/health",
     ),
     Service(
         id="immobilien", name="Immobilien", url="http://127.0.0.1:8091",

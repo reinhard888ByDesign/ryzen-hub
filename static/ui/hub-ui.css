@@ -480,6 +480,31 @@ body.hub-ui {
 .hub-ui .btn-danger { background: var(--red-soft); border-color: transparent; color: var(--err-text); }
 .hub-ui .btn-danger:hover { background: var(--red); color: #fff; }
 
+/* Tabbar — Referenz-Implementierung (AP221, UI-RICHTLINIE §7 „Tabs"):
+   Pill-Links, aktiver Tab = .aktiv (Akzent + weiße Schrift), Radius nur außen. */
+.hub-ui .tabbar { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+.hub-ui .tabbar a {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  min-height: 36px;
+  background: var(--card);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.hub-ui .tabbar a:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.hub-ui .tabbar a:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.hub-ui .tabbar a:hover:not(.aktiv) { background: var(--hover); }
+.hub-ui .tabbar a.aktiv {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
 /* Formulare */
 .hub-ui .v-form { display: flex; flex-direction: column; gap: 10px; }
 .hub-ui .v-field { display: flex; flex-direction: column; gap: 4px; }
@@ -772,6 +797,8 @@ body.hub-ui {
   .hub-ui .hub-table { font-size: 12px; }
   .hub-ui .hub-table th, .hub-ui .hub-table td { padding: 6px 8px; }
   .hub-ui .hub-table-filter { max-width: none; }
+
+  .hub-ui .tabbar a { padding: 8px 10px; min-height: 44px; font-size: 12px; }
 }
 
 @media (max-width: 390px) {
