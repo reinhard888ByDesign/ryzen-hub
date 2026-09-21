@@ -394,3 +394,4 @@ medizinisches-bulletin.
 | 1.1 | 21.09.2026 | AP221: `.tabbar`-Referenzkomponente, DE/IT-Badge-Konvention (DE=blau/IT=orange), relative App-CSS-Pfade festgeschrieben; kfz (8094) migriert |
 | 1.2 | 21.09.2026 | AP222: Kachel-Navigation als Tabs-Alternative dokumentiert (§7); kfz: Steuern-Seite + Kachel-Navigation (Nutzer-Entscheidung) |
 | 1.3 | 21.09.2026 | AP222b: Kachel-Navigation ist PFLICHT für alle Apps (§7, §11) — auf jeder Seite, aktive Kachel markiert, Start-Kachel auf `./`; kfz umgesetzt |
+| 1.4 | 21.09.2026 | AP223: Layout-Fix — `body.hub-ui` als Flex-Spalte (Shell oben, Inhalt darunter); vorher standen Shell und App-Container nebeneinander (Inhalt zentriert im Restplatz, mobil zerquetscht) |

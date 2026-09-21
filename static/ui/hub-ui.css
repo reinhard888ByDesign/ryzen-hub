@@ -211,6 +211,13 @@ body.hub-ui {
   color: var(--text-1);
   font-family: var(--font);
   display: flex;
+  /* AP223: Spalte statt Zeile — auf App-Seiten stehen die injizierte
+     #hub-shell (sticky, nimmt am Flex-Fluss teil) und der .container
+     sonst NEBENEINANDER: der Container zentrierte sich im Restplatz
+     rechts der Shell (Kacheln mittig), mobil wurde er zerquetscht.
+     Hub-Seiten sind unberuehrt: die Sidebar ist position:fixed, .main
+     der einzige im Fluss stehende Koerper-Kind. */
+  flex-direction: column;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
