@@ -198,6 +198,13 @@ Regeln:
 - `data-filter="Platzhaltertext"` erzeugt das Suchfeld über der
   Tabelle; gefiltert wird über den sichtbaren Text; null Treffer ⇒
   Leerzustand mit „Filter zurücksetzen".
+- **Suchfeld-Position (AP223b, gilt für alle Listen):** Das
+  HubTable-Suchfeld steht IMMER **rechtsbündig über der Tabelle**.
+  Steht direkt davor ein Server-Filter (`.toolbar`, z. B.
+  Fahrzeug-Auswahl), bilden beide **eine Zeile** (`.liste-kopf`):
+  Filter links, Suchfeld rechts. hub-ui.js baut die Zeile
+  automatisch — Apps rendern nur Toolbar + Tabelle in dieser
+  Reihenfolge.
 - Zahlen rechtsbündig mit `.num`, negativ zusätzlich `.num-neg`.
 - Summenzeile: `<tr class="foot-row">` in einem zweiten `<tbody>`.
 - Demo zum Ausprobieren: `/ui/demo.html`. Sortierung/Filter laufen
@@ -395,3 +402,4 @@ medizinisches-bulletin.
 | 1.2 | 21.09.2026 | AP222: Kachel-Navigation als Tabs-Alternative dokumentiert (§7); kfz: Steuern-Seite + Kachel-Navigation (Nutzer-Entscheidung) |
 | 1.3 | 21.09.2026 | AP222b: Kachel-Navigation ist PFLICHT für alle Apps (§7, §11) — auf jeder Seite, aktive Kachel markiert, Start-Kachel auf `./`; kfz umgesetzt |
 | 1.4 | 21.09.2026 | AP223: Layout-Fix — `body.hub-ui` als Flex-Spalte (Shell oben, Inhalt darunter); vorher standen Shell und App-Container nebeneinander (Inhalt zentriert im Restplatz, mobil zerquetscht) |
+| 1.5 | 21.09.2026 | AP223b: Suchfeld-Regel für alle Listen — HubTable-Suchfeld rechtsbündig über der Tabelle, Server-Filter links, beide in einer Zeile (`.liste-kopf`, baut hub-ui.js automatisch) |

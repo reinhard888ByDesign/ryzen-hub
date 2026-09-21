@@ -229,7 +229,24 @@
     input.placeholder = ph;
     input.setAttribute('aria-label', ph);
     wrap.appendChild(input);
-    table.parentNode.insertBefore(wrap, table);
+
+    // AP223b: Suchfeld IMMER rechtsbuendig ueber der Tabelle. Steht direkt
+    // davor eine .toolbar (Server-Filter), bilden beide eine Zeile
+    // (.liste-kopf): Filter links, Suchfeld rechts — Regel fuer alle
+    // Listen (UI-RICHTLINIE §7 „Tabelle").
+    var ziel = table.parentNode;
+    var toolbar = ziel.previousElementSibling;
+    var hatToolbar = toolbar && toolbar.classList &&
+                     toolbar.classList.contains('toolbar');
+    if (hatToolbar) {
+      var kopf = document.createElement('div');
+      kopf.className = 'liste-kopf';
+      ziel.parentNode.insertBefore(kopf, ziel);
+      kopf.appendChild(toolbar);
+      kopf.appendChild(wrap);
+    } else {
+      ziel.insertBefore(wrap, table);
+    }
 
     var leer = document.createElement('div');
     leer.className = 'hub-table-leer';

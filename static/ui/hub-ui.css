@@ -538,7 +538,9 @@ body.hub-ui {
   align-items: center;
   gap: 8px;
   max-width: 340px;
-  margin-bottom: 12px;
+  /* AP223b: Suchfelder stehen IMMER rechtsbuendig ueber der Tabelle
+     (alle Listen, plattformweit). */
+  margin: 0 0 12px auto;
   padding: 7px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -555,6 +557,20 @@ body.hub-ui {
   min-width: 0;
 }
 .hub-ui .hub-table-filter input:focus { outline: none; }
+
+/* Server-Filter (.toolbar) + Suchfeld in EINER Zeile (AP223b):
+   hub-ui.js legt beide in .liste-kopf — Filter links, Suchfeld rechts.
+   Regel fuer alle Listen (UI-RICHTLINIE §7 „Tabelle"). */
+.hub-ui .liste-kopf {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.hub-ui .liste-kopf .toolbar { padding: 0; margin: 0; }
+.hub-ui .liste-kopf .toolbar-count { margin-left: 0; }
+.hub-ui .liste-kopf .hub-table-filter { margin: 0 0 0 auto; }
 .hub-ui table.hub-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .hub-ui .hub-table th {
   text-align: left;
@@ -804,6 +820,8 @@ body.hub-ui {
   .hub-ui .hub-table { font-size: 12px; }
   .hub-ui .hub-table th, .hub-ui .hub-table td { padding: 6px 8px; }
   .hub-ui .hub-table-filter { max-width: none; }
+  .hub-ui .liste-kopf { gap: 8px; }
+  .hub-ui .liste-kopf .hub-table-filter { flex: 1 1 100%; margin-left: 0; }
 
   .hub-ui .tabbar a { padding: 8px 10px; min-height: 44px; font-size: 12px; }
 }
