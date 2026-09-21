@@ -84,6 +84,7 @@ REGISTRY: list[Service] = [
         db_path=str(SKILLS / "leistungsabrechnung/kk_leistungen.db"),
         db_query="SELECT COUNT(*) FROM leistungen",
         db_label="Abrechnungen",
+        health_path="/health",
     ),
     Service(
         id="kfz", name="KFZ", url="http://127.0.0.1:8094",
@@ -112,6 +113,7 @@ REGISTRY: list[Service] = [
         ),
         db_label="Einnahmen − Kosten p.a.",
         db_format="euro",
+        health_path="/health",
     ),
     Service(
         id="absender", name="Absender DB", url="http://127.0.0.1:8765",
@@ -153,6 +155,7 @@ REGISTRY: list[Service] = [
         db_path=str(SKILLS / "altersvorsorge/altersvorsorge.db"),
         db_query="SELECT COUNT(*) FROM vertraege WHERE aktiv=1",
         db_label="Aktive Verträge",
+        health_path="/health",
     ),
     Service(
         id="sachversicherungen", name="Sachversicherungen", url="http://127.0.0.1:8093",
@@ -161,12 +164,13 @@ REGISTRY: list[Service] = [
         db_path=str(SKILLS / "sachversicherungen/sachversicherungen.db"),
         db_query="SELECT COUNT(*) FROM vertraege WHERE aktiv=1",
         db_label="Aktive Verträge",
+        health_path="/health",
     ),
     Service(
         id="finanzanalyse", name="Finanzanalyse", url="http://127.0.0.1:8097",
         category="Dokumente & Abfragen", icon="💰",
         description="Finanzanalyse — Transaktionen aus CSV-Import",
-        health_path="/api/summary.json",
+        health_path="/health",
         db_path="/home/reinhard/finanzen/finanzen.db",
         # Vermoegen = Summe der letzten Kontostaende je Konto (wie die
         # Summary-Card der App; Window-Function statt korrelierter
@@ -190,7 +194,7 @@ REGISTRY: list[Service] = [
         id="goldbestand", name="Goldbestand", url="http://127.0.0.1:8098",
         category="Dokumente & Abfragen", icon="🪙",
         description="Goldbarren & historische Muenzen — Depotwert zum Tageskurs",
-        health_path="/api/summary.json",
+        health_path="/health",
         db_path=str(SKILLS / "goldbestand/goldbestand.db"),
         db_query=(
             "SELECT CAST(ROUND(("
@@ -208,7 +212,7 @@ REGISTRY: list[Service] = [
         id="medizinisches-bulletin", name="Medizinisches Bulletin", url="http://127.0.0.1:8100",
         category="Dokumente & Abfragen", icon="🩺",
         description="Laborwerte & Arztbriefe — Zeitreihen, Chronik, Einschätzung je Person",
-        health_path="/api/status.json",
+        health_path="/health",
     ),
     Service(
         id="investor", name="Investor Reporting", url="http://127.0.0.1:8095",
@@ -217,6 +221,7 @@ REGISTRY: list[Service] = [
         db_path=str(SKILLS / "investor-reporting/investor.db"),
         db_query="SELECT COUNT(*) FROM reports WHERE processing_status='extracted'",
         db_label="Reports",
+        health_path="/health",
     ),
     Service(
         id="aufgaben", name="Aufgaben", url="http://127.0.0.1:8096",
@@ -225,6 +230,7 @@ REGISTRY: list[Service] = [
         db_path="/home/reinhard/aufgaben/aufgaben.db",
         db_query="SELECT COUNT(*) FROM aufgaben WHERE status != 'erledigt'",
         db_label="Offen",
+        health_path="/health",
     ),
     Service(
         id="molly", name="Molly", url="http://127.0.0.1:8081",
@@ -287,7 +293,7 @@ REGISTRY: list[Service] = [
         id="vault-integrity", name="Vault Integrity", url="http://127.0.0.1:8099",
         category="Infrastruktur", icon="🔍",
         description="Vault-Integritäts-Check — 6 Phasen: Duplikate, Links, Frontmatter, Kategorien, App-Routing, Inbox",
-        health_path="/api/status",
+        health_path="/health",
         startpfad="/vault",
     ),
 ]

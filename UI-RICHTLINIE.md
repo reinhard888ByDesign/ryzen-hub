@@ -338,6 +338,12 @@ Textfarbe + Label). Konvention, festgelegt AP221: **DE = Blau**
 (`--accent-soft`/`--accent`), **IT = Orange**
 (`--amber-soft`/`--warn-text`).
 
+**Personen-Badges** (festgelegt AP228): **Marion = Rosé** `#c7254e`
+(Dunkelmodus `#ff7a95`), **Reinhard = Blau** (`--accent`). Als
+App-Token `--person-marion` umsetzen, Text-Badge mit Namen — nie
+Farbe allein. Gilt für leistungsabrechnung, altersvorsorge,
+medizinisches-bulletin.
+
 ## 9. Theme (hell/dunkel)
 
 - **Automatik** (`prefers-color-scheme`) ist der Standard; der
@@ -380,23 +386,23 @@ Einzelbefunde (aus der UI-Inventur 09/2026):
 | App (Port) | Befunde → zu tun |
 |---|---|
 | molly (8081) | ✅ **migriert (AP220, 21.09.2026)** — Shell statt Sidebar, Tokens + Teal-`--app-accent`, HubTable für Erledigte Tage + Librela-Historie, Mobile-Queries, Soll=0-Fix, relative Asset-Pfade |
-| leistungsabrechnung (8090) | **Marion-Farbe** `#c7254e` vs. altersvorsorge grün → einheitliche Personenfarben festlegen; nacktes `.2f` → `format_euro()`; Tabbar vereinheitlichen |
+| leistungsabrechnung (8090) | ✅ **migriert (AP228, 21.09.2026)** — 4 Kacheln, 6 HubTables (colspan/details raus), Marion-Token `#c7254e` (+Dark `#ff7a95`), `format_euro()` + DD.MM.YYYY, Kassen-Badges, Beleg-Existenz-Check |
 | kfz (8094) | ✅ **migriert (AP221+AP222, 21.09.2026)** — alle 11 SQL-Tabellen → HubTable, `format_euro()` + DD.MM.YYYY, DE/IT-Badges auf Konvention (DE=blau/IT=orange), PDF-Viewer → Tokens, `/health`, Mobile-Queries, eigene Steuern-Seite, **Kachel-Navigation auf jeder Seite** (Referenz-Muster für alle Apps) |
-| sachversicherungen (8093) | Badge-Konvention DE=blau/IT=orange ist bereits vorhanden (durch AP221 festgeschrieben — keine Änderung nötig); US-Formate → deutsch |
-| altersvorsorge (8092) | Sparkline-Muster ist die Referenz (dokumentiert); `1,234.56` → deutsch; Marion grün (Konflikt s. leistungsabrechnung) |
-| aufgaben (8096) | Modal/Bulk-Aktionen als Dialog-Referenz dokumentieren; `--muted:#888` → Tokens; Tabellen → HubTable |
-| finanzen (8097) | CSS-Div-Balken → SVG-Sparkline-Muster; Netto-Saldo → `format_euro()`; leere `chart-card img`-Reste entfernen |
-| goldbestand (8098) | Akzent `#b8860b` → `--app-accent` auf Token-Gerüst; Tabellen → HubTable |
-| investor (8095) | Englische KPI-Labels → Deutsch; Client-JS-Tabs → Referenz-Tabbar; Gauge-Farben → Tokens |
-| immobilien (8091) | Zusammengesetzte Kennzahl („5 aktiv · +1.200 €/M") → KPI + Sub-Label trennen; Formate |
-| vault-integrity (8099) | Externe CSS-Architektur ist das Vorbild (behalten); Hartcodes (`#fff`, `#f5f5f7`, `#86868b`) → Tokens; Health-Ring als dokumentiertes Spezial-Pattern |
-| medizinisches-bulletin (8100) | Teal `#0d6e6e` → `--app-accent`; dataviz-Palette + „Farbe nie allein"-Regel in diese Richtlinie übernommen (danke); **keine Media-Query** → Mobile-Pflicht; eigener hub_auth-Cookie-Check darf bleiben (Defense in Depth) |
+| sachversicherungen (8093) | ✅ **migriert (AP228, 21.09.2026)** — 2 Kacheln, 3 HubTables, `.badge-land`-Tokens, `format_euro()`, /praemien-500er gefixt, 11 tote Quell-PDFs ohne Link |
+| altersvorsorge (8092) | ✅ **migriert (AP228, 21.09.2026)** — 3 Kacheln (Verträge/Reinhard/Marion), Sparkline-Referenz beibehalten, Marion auf `#c7254e`, `format_euro()` |
+| aufgaben (8096) | ✅ **migriert (AP228, 21.09.2026)** — 3 Kacheln (Aufgaben/Überfällig/Thema), Dialog-Referenzmuster erhalten, Bulk-Aktionen unverändert, Tabellen → HubTable |
+| finanzen (8097) | ✅ **migriert (AP228, 21.09.2026)** — 6 Kacheln, 15 HubTables, Div-Balken → SVG-Sparkline, Violett-Akzent, `format_euro()`, Δ-Prozent-Fix bei negativer Basis |
+| goldbestand (8098) | ✅ **migriert (AP228, 21.09.2026)** — 4 Kacheln, 4 HubTables, Gold-Akzent `--app-accent` |
+| investor (8095) | ✅ **migriert (AP228, 21.09.2026)** — 5 Kacheln (je Gesellschaft + Exit-Radar), 20 HubTables, Labels deutsch, Gauge auf Tokens |
+| immobilien (8091) | ✅ **migriert (AP228, 21.09.2026)** — 6 Kacheln, 19 HubTables, Kennzahlen als KPI + Sub-Label, NK-Drilldown als Server-Filter, 59 fehlende Vault-Dateien ohne Link |
+| vault-integrity (8099) | ✅ **migriert (AP228, 21.09.2026)** — 4 Kacheln, 3 HubTables, Health-Ring-Spezial-Pattern behalten, Hartcodes → Tokens; Hinweis: stdlib-`http.server`, `/ui` aus Handler, Assets relativ |
+| medizinisches-bulletin (8100) | ✅ **migriert (AP228, 21.09.2026)** — 2 Personen-Kacheln (ohne Daten-Leak), Markdown-Tabellen → HubTables (44/40), Teal-Akzent, Cookie-Check erhalten, Mobile ergänzt |
 
-**Empfohlene Migrationsreihenfolge:** ~~(1) molly~~ ✅ AP220 · ~~(2) kfz~~ ✅ AP221 ·
-(3) leistungsabrechnung + sachversicherungen — klären die
-Farbkonventionen · (4) altersvorsorge · (5) finanzen + goldbestand ·
-(6) aufgaben + investor · (7) immobilien · (8) vault-integrity +
-medizinisches-bulletin.
+**Migrationsreihenfolge:** alle ✅ erledigt — ~~(1) molly~~ ✅ AP220 ·
+~~(2) kfz~~ ✅ AP221 · (3–8) leistungsabrechnung, sachversicherungen,
+altersvorsorge, finanzen, goldbestand, aufgaben, investor, immobilien,
+vault-integrity, medizinisches-bulletin — ✅ **AP228 (21.09.2026):
+alle 10 Apps migriert**. Offen: Browser-Tests durch den Nutzer.
 
 ## 12. Changelog
 
@@ -410,3 +416,4 @@ medizinisches-bulletin.
 | 1.5 | 21.09.2026 | AP223b: Suchfeld-Regel für alle Listen — HubTable-Suchfeld rechtsbündig über der Tabelle, Server-Filter links, beide in einer Zeile (`.liste-kopf`, baut hub-ui.js automatisch) |
 | 1.6 | 21.09.2026 | AP223c: `.container` mit fester Breite (`width:100%; max-width:960px`) — alle Seiten einer App gleich breit, unabhängig vom Inhalt |
 | 1.7 | 21.09.2026 | AP223d: `min-width: 0` am `.container` — verhindert Aufweitung über 960 px durch die automatische Inhalts-Mindestbreite von Flex-Items (breite Tabellen) |
+| 1.8 | 21.09.2026 | AP228: alle 10 verbleibenden Apps migriert (§11 komplett ✅) — Personen-Badge-Konvention (Marion Rosé `#c7254e`, Reinhard Blau) in §8b; alle Apps mit `/health` |
