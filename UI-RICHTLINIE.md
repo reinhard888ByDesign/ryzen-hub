@@ -248,7 +248,14 @@ Inline-Links (`<a>`), aktiver Tab = Klasse `.aktiv`
 (Akzent-Hintergrund + weiße Schrift), Radius nur außen, mobil
 44-px-Tap-Ziele und Umbruch. Die bisherigen Varianten (Helfer-Funktion,
 kopierte Links, Client-JS) werden bei der Migration auf `.tabbar`
-vereinheitlicht — kfz nutzt sie seit AP221 als erste App.
+vereinheitlicht.
+
+**Alternative ohne Tabs** (Nutzer-Entscheidung AP222): Apps, deren
+Bereiche als KPI-Kacheln darstellbar sind, verzichten auf eine
+Menüleiste und navigieren nach dem Kommandozentralen-Muster — die
+Kacheln (`widget` als `<a>`, Pfeil in der Fußzeile) sind die einzige
+Navigation, Unterseiten bekommen einen „← Übersicht"-Link. kfz nutzt
+dieses Muster seit AP222.
 
 ### Sparkline / Chart
 Das **einzige** Chart-Muster: SVG-Polyline.
@@ -358,7 +365,7 @@ Einzelbefunde (aus der UI-Inventur 09/2026):
 |---|---|
 | molly (8081) | ✅ **migriert (AP220, 21.09.2026)** — Shell statt Sidebar, Tokens + Teal-`--app-accent`, HubTable für Erledigte Tage + Librela-Historie, Mobile-Queries, Soll=0-Fix, relative Asset-Pfade |
 | leistungsabrechnung (8090) | **Marion-Farbe** `#c7254e` vs. altersvorsorge grün → einheitliche Personenfarben festlegen; nacktes `.2f` → `format_euro()`; Tabbar vereinheitlichen |
-| kfz (8094) | ✅ **migriert (AP221, 21.09.2026)** — alle 11 SQL-Tabellen → HubTable, `format_euro()` + DD.MM.YYYY, DE/IT-Badges auf Konvention (DE=blau/IT=orange), `.tabbar`-Referenz, PDF-Viewer → Tokens, `/health`, Mobile-Queries |
+| kfz (8094) | ✅ **migriert (AP221, 21.09.2026)** — alle 11 SQL-Tabellen → HubTable, `format_euro()` + DD.MM.YYYY, DE/IT-Badges auf Konvention (DE=blau/IT=orange), PDF-Viewer → Tokens, `/health`, Mobile-Queries. **AP222:** eigene Steuern-Seite (Aufbau wie Versicherungen), Kachel-Navigation statt `.tabbar` (Nutzer-Entscheidung), KFZ-Dubletten in schaeden/reparaturen quarantäniert |
 | sachversicherungen (8093) | Badge-Konvention DE=blau/IT=orange ist bereits vorhanden (durch AP221 festgeschrieben — keine Änderung nötig); US-Formate → deutsch |
 | altersvorsorge (8092) | Sparkline-Muster ist die Referenz (dokumentiert); `1,234.56` → deutsch; Marion grün (Konflikt s. leistungsabrechnung) |
 | aufgaben (8096) | Modal/Bulk-Aktionen als Dialog-Referenz dokumentieren; `--muted:#888` → Tokens; Tabellen → HubTable |
@@ -381,3 +388,4 @@ medizinisches-bulletin.
 |---|---|---|
 | 1.0 | 20.09.2026 | Erste Fassung (AP210): Kommandozentrale, Shell, Hell+Dunkel, HubTable-Pflicht, Formate, Farbwelt, Migrations-Checkliste |
 | 1.1 | 21.09.2026 | AP221: `.tabbar`-Referenzkomponente, DE/IT-Badge-Konvention (DE=blau/IT=orange), relative App-CSS-Pfade festgeschrieben; kfz (8094) migriert |
+| 1.2 | 21.09.2026 | AP222: Kachel-Navigation als Tabs-Alternative dokumentiert (§7); kfz: Steuern-Seite + Kachel-Navigation (Nutzer-Entscheidung) |
