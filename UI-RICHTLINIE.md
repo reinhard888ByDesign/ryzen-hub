@@ -341,7 +341,7 @@ Einzelbefunde (aus der UI-Inventur 09/2026):
 
 | App (Port) | Befunde → zu tun |
 |---|---|
-| molly (8081) | Warmes Beige als `--app-accent` erlaubt (Zuordnung: Teal); **355-px-Sidebar entfernen** (Shell ersetzt sie); keine CSS-Variablen → Token-Gerüst; **keine Media-Query** → Mobile-Pflicht |
+| molly (8081) | ✅ **migriert (AP220, 21.09.2026)** — Shell statt Sidebar, Tokens + Teal-`--app-accent`, HubTable für Erledigte Tage + Librela-Historie, Mobile-Queries, Soll=0-Fix, relative Asset-Pfade |
 | leistungsabrechnung (8090) | **Marion-Farbe** `#c7254e` vs. altersvorsorge grün → einheitliche Personenfarben festlegen; nacktes `.2f` → `format_euro()`; Tabbar vereinheitlichen |
 | kfz (8094) | **DE/IT-Badges vertauscht** vs. sachversicherungen (DE=orange/IT=blau vs. DE=blau/IT=orange) → eine Konvention; US-Formate → deutsch; dunkle PDF-Viewer-Seite (`#333`) → Tokens; größte Listen → HubTable zuerst |
 | sachversicherungen (8093) | Badge-Konflikt s. kfz; US-Formate → deutsch |
@@ -354,8 +354,8 @@ Einzelbefunde (aus der UI-Inventur 09/2026):
 | vault-integrity (8099) | Externe CSS-Architektur ist das Vorbild (behalten); Hartcodes (`#fff`, `#f5f5f7`, `#86868b`) → Tokens; Health-Ring als dokumentiertes Spezial-Pattern |
 | medizinisches-bulletin (8100) | Teal `#0d6e6e` → `--app-accent`; dataviz-Palette + „Farbe nie allein"-Regel in diese Richtlinie übernommen (danke); **keine Media-Query** → Mobile-Pflicht; eigener hub_auth-Cookie-Check darf bleiben (Defense in Depth) |
 
-**Empfohlene Migrationsreihenfolge:** (1) molly — größter UI-Gewinn,
-Jinja+static bereits vorhanden · (2) kfz — Referenz-Migration für die
+**Empfohlene Migrationsreihenfolge:** ~~(1) molly~~ ✅ AP220 · (2) kfz —
+Referenz-Migration für die
 Sippe · (3) leistungsabrechnung + sachversicherungen — klären die
 Farbkonventionen · (4) altersvorsorge · (5) finanzen + goldbestand ·
 (6) aufgaben + investor · (7) immobilien · (8) vault-integrity +

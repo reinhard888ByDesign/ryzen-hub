@@ -229,6 +229,7 @@ REGISTRY: list[Service] = [
         id="molly", name="Molly", url="http://127.0.0.1:8081",
         category="Haushalt", icon="🐾",
         description="Medikationsplan — Arthrose & Ohrentzündung, Librela-Tracking",
+        health_path="/health",   # AP220: eigener Health-Endpunkt statt der ganzen Seite
     ),
     Service(
         id="wilson-senders", name="Email-Absender", url="http://127.0.0.1:8771",

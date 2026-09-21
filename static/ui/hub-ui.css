@@ -330,6 +330,8 @@ body.hub-ui {
 }
 .hub-ui .topbar-meta { font-size: 13px; color: var(--text-2); margin-left: auto; }
 .hub-ui .content { padding: 20px 32px 48px; flex: 1; }
+.hub-ui .container { max-width: 960px; margin: 0 auto; padding: 20px 32px 48px; }
+.hub-ui .container > :first-child { margin-top: 0; }
 .hub-ui .section-header {
   font-size: 11.5px;
   font-weight: 600;
@@ -743,6 +745,7 @@ body.hub-ui {
   .hub-ui .topbar-title { font-size: 20px; }
   .hub-ui .topbar-meta { margin-left: 0; font-size: 12px; }
   .hub-ui .content { padding: 8px 10px 40px; }
+  .hub-ui .container { padding: 8px 10px 40px; }
   .hub-ui .section-header { margin-top: 12px; margin-bottom: 6px; font-size: 10.5px; }
   .hub-ui .alerts { padding: 8px 10px 0; }
   .hub-ui .toolbar { padding: 10px 10px 0; gap: 8px; }
