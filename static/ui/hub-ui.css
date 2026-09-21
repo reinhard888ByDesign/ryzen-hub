@@ -337,11 +337,13 @@ body.hub-ui {
 }
 .hub-ui .topbar-meta { font-size: 13px; color: var(--text-2); margin-left: auto; }
 .hub-ui .content { padding: 20px 32px 48px; flex: 1; }
-/* Feste Breite (AP223c): width:100% + max-width — sonst bestimmt der
+/* Feste Breite (AP223c/d): width:100% + max-width — sonst bestimmt der
    Inhalt die Seitenbreite: Auto-Margins siegen in Flex-Containern ueber
-   das Stretching, schmale Tabellen ergaeben schmale Seiten. So sind
-   ALLE Seiten einer App gleich breit (Referenz 960 px). */
-.hub-ui .container { width: 100%; max-width: 960px; margin: 0 auto; padding: 20px 32px 48px; }
+   das Stretching, schmale Tabellen ergaeben schmale Seiten. min-width:0
+   nimmt zusaetzlich die automatische Inhalts-Mindestbreite von
+   Flex-Items weg — breite Tabellen haben den Container sonst ueber
+   960 px hinaus aufgeweitet (Seiten ungleich breit). */
+.hub-ui .container { width: 100%; max-width: 960px; min-width: 0; margin: 0 auto; padding: 20px 32px 48px; }
 .hub-ui .container > :first-child { margin-top: 0; }
 .hub-ui .section-header {
   font-size: 11.5px;

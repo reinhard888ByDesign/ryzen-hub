@@ -68,8 +68,11 @@ Erläuterungen:
   des falschen Farbschemas (FOUC). Es muss vor jedem `<link>` stehen.
 - `class="hub-ui"` auf `<body>` aktiviert Reset + Komponenten.
 - App-Inhalte liegen in `.container` — **feste Breite**
-  (`width: 100%; max-width: 960 px`, zentriert): alle Seiten einer
-  App sind gleich breit, unabhängig vom Inhalt (AP223c).
+  (`width: 100%; max-width: 960 px; min-width: 0`, zentriert): alle
+  Seiten einer App sind gleich breit, unabhängig vom Inhalt.
+  `min-width: 0` ist Pflicht — ohne sie weitet die automatische
+  Inhalts-Mindestbreite von Flex-Items den Container auf breiten
+  Tabellenseiten über 960 px auf (AP223c/d).
 - Der Hub ergänzt bei eigenen Apps (`rahmen=True`) automatisch Shell,
   Assets und den Pfad-Patcher — die App braucht sich darum nicht zu
   kümmern. Migrierte Apps lassen ihre eigene Einbindung trotzdem
@@ -406,3 +409,4 @@ medizinisches-bulletin.
 | 1.4 | 21.09.2026 | AP223: Layout-Fix — `body.hub-ui` als Flex-Spalte (Shell oben, Inhalt darunter); vorher standen Shell und App-Container nebeneinander (Inhalt zentriert im Restplatz, mobil zerquetscht) |
 | 1.5 | 21.09.2026 | AP223b: Suchfeld-Regel für alle Listen — HubTable-Suchfeld rechtsbündig über der Tabelle, Server-Filter links, beide in einer Zeile (`.liste-kopf`, baut hub-ui.js automatisch) |
 | 1.6 | 21.09.2026 | AP223c: `.container` mit fester Breite (`width:100%; max-width:960px`) — alle Seiten einer App gleich breit, unabhängig vom Inhalt |
+| 1.7 | 21.09.2026 | AP223d: `min-width: 0` am `.container` — verhindert Aufweitung über 960 px durch die automatische Inhalts-Mindestbreite von Flex-Items (breite Tabellen) |
