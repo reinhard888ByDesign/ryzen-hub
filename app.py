@@ -211,7 +211,7 @@ REGISTRY: list[Service] = [
     Service(
         id="medizinisches-bulletin", name="Medizinisches Bulletin", url="http://127.0.0.1:8100",
         category="Dokumente & Abfragen", icon="🩺",
-        description="Laborwerte & Arztbriefe — Zeitreihen, Chronik, Einschätzung je Person",
+        description="Laborwerte & Arztbriefe — Zeitreihen und Chronik je Person",
         health_path="/health",
     ),
     Service(
