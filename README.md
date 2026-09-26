@@ -23,6 +23,7 @@ selbst lauschen nur auf `127.0.0.1` (AP07-Zonentrennung).
 | 127.0.0.1:8100 | Medizinisches Bulletin | Dokumente & Abfragen |
 | 127.0.0.1:8095 | Investor Reporting | Dokumente & Abfragen |
 | 127.0.0.1:8771 | Email-Absender | Dokumente & Abfragen |
+| 127.0.0.1:8101 | Vault | Dokumente & Abfragen |
 | 127.0.0.1:8096 | Aufgaben | Haushalt |
 | 127.0.0.1:8081 | Molly | Haushalt |
 | 127.0.0.1:8765 | Dispatcher | Infrastruktur |
