@@ -296,6 +296,15 @@ REGISTRY: list[Service] = [
         health_path="/health",
         startpfad="/vault",
     ),
+    Service(
+        id="vault-browser", name="Vault", url="http://127.0.0.1:8101",
+        category="Dokumente & Abfragen", icon="🗂️",
+        description="Obsidian-Vault durchsuchen: 18 Kategorien, Titel- & Volltextsuche, Markdown-Ansicht",
+        db_path="/home/reinhard/vault/.enzyme/enzyme.db",
+        db_query="SELECT COUNT(*) FROM docs",
+        db_label="Dokumente",
+        health_path="/health",
+    ),
 ]
 
 CATEGORY_ORDER = ["Dokumente & Abfragen", "Haushalt", "Infrastruktur", "KI"]
